@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reusable KYC - Document Scanner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        h2 { color: #004a99; margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        input[type="text"] {
+            width: 100%; padding: 10px; border: 1px solid #ccc;
+            border-radius: 4px; box-sizing: border-box;
+        }
+        .scanner-box {
+            display: flex; flex-direction: column; align-items: center;
+            border: 2px dashed #004a99; padding: 20px; border-radius: 8px;
+            background: #fafafa; margin-bottom: 20px;
+        }
+        video, canvas {
+            border: 1px solid #ccc; border-radius: 4px;
+            max-width: 100%; background: #000;
+        }
+        .hidden { display: none; }
+        .btn {
+            padding: 10px 20px; border: none; border-radius: 4px;
+            cursor: pointer; font-size: 16px; margin: 5px;
+            transition: background 0.3s;
+        }
+        .btn-primary { background: #004a99; color: white; }
+        .btn-primary:hover { background: #003366; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        #statusContainer {
+            margin-top: 20px; padding: 15px; border-radius: 4px;
+            background: #e9ecef; display: none;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid #004a99;
+            border-radius: 50%; width: 30px; height: 30px;
+            animation: spin 1s linear infinite; display: inline-block;
+            vertical-align: middle; margin-right: 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Reusable KYC Document Scanner</h2>
+    
+    <div class="form-group">
+        <label for="customerId">Customer ID</label>
+        <input type="text" id="customerId" placeholder="e.g., cust12345" value="cust123">
+    </div>
+    <div class="form-group">
+        <label for="did">Decentralized ID (DID)</label>
+        <input type="text" id="did" placeholder="e.g., did:lloyds:123" value="did:lloyds:123">
+    </div>
+
+    <div class="scanner-box">
+        <video id="video" width="640" height="480" autoplay></video>
+        <canvas id="canvas" width="640" height="480" class="hidden"></canvas>
+        <div style="margin-top: 15px;">
+            <button id="startBtn" class="btn btn-primary">1. Start Camera</button>
+            <button id="captureBtn" class="btn btn-success hidden">2. Capture Document</button>
+            <button id="retakeBtn" class="btn btn-danger hidden">Retake</button>
+            <button id="submitBtn" class="btn btn-primary hidden">3. Submit for KYC</button>
+        </div>
+    </div>
+
+    <div id="statusContainer">
+        <div id="loadingSpinner" class="spinner"></div>
+        <span id="statusText">Processing...</span>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const startBtn = document.getElementById('startBtn');
+    const captureBtn = document.getElementById('captureBtn');
+    const retakeBtn = document.getElementById('retakeBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusContainer = document.getElementById('statusContainer');
+    const statusText = document.getElementById('statusText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    
+    let stream = null;
+    let capturedBlob = null;
+
+    // 1. Start Webcam
+    startBtn.addEventListener('click', async () => {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            video.classList.remove('hidden');
+            startBtn.classList.add('hidden');
+            captureBtn.classList.remove('hidden');
+        } catch (err) {
+            alert("Error accessing webcam: " + err.message);
+        }
+    });
+
+    // 2. Capture Frame
+    captureBtn.addEventListener('click', () => {
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, 640, 480);
+        
+        // Stop the video stream
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        
+        video.classList.add('hidden');
+        canvas.classList.remove('hidden');
+        captureBtn.classList.add('hidden');
+        retakeBtn.classList.remove('hidden');
+        submitBtn.classList.remove('hidden');
+
+        // Convert canvas to Blob (JPEG)
+        canvas.toBlob(blob => {
+            capturedBlob = blob;
+        }, 'image/jpeg', 0.9);
+    });
+
+    // Retake Photo
+    retakeBtn.addEventListener('click', async () => {
+        canvas.classList.add('hidden');
+        retakeBtn.classList.add('hidden');
+        submitBtn.classList.add('hidden');
+        
+        // Restart camera
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        video.classList.remove('hidden');
+        captureBtn.classList.remove('hidden');
+    });
+
+    // 3. Submit to Backend
+    submitBtn.addEventListener('click', async () => {
+        const customerId = document.getElementById('customerId').value;
+        const did = document.getElementById('did').value;
+
+        if (!customerId || !did) {
+            alert("Please enter Customer ID and DID.");
+            return;
+        }
+        if (!capturedBlob) {
+            alert("No document captured.");
+            return;
+        }
+
+        // Show loading
+        statusContainer.style.display = 'block';
+        loadingSpinner.style.display = 'inline-block';
+        statusText.innerText = "Submitting to Blockchain & Mitek for verification...";
+        submitBtn.disabled = true;
+
+        // Construct Multipart Form Data
+        const formData = new FormData();
+        
+        // Append JSON request as a Blob (Spring Boot expects application/json for the request part)
+        const requestJson = JSON.stringify({ customerId: customerId, did: did });
+        const requestBlob = new Blob([requestJson], { type: 'application/json' });
+        
+        formData.append('request', requestBlob);
+        formData.append('document', capturedBlob, 'scanned-document.jpg');
+
+        try {
+            const response = await fetch('/api/v1/kyc/initiate', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            loadingSpinner.style.display = 'none';
+            
+            if (response.ok) {
+                statusText.innerHTML = `
+                    <strong style="color: green;">KYC Verification Successful!</strong><br><br>
+                    <strong>Customer ID:</strong> ${result.customerId}<br>
+                    <strong>Status:</strong> ${result.status}<br>
+                    <strong>Mitek Dossier ID:</strong> ${result.mitekDossierId}<br>
+                    <strong>Canton Contract ID:</strong> ${result.cantonContractId}<br>
+                    <strong>Verified At:</strong> ${new Date(result.verifiedAt).toLocaleString()}<br>
+                    <strong>Expires At:</strong> ${new Date(result.expiresAt).toLocaleString()}
+                `;
+            } else {
+                statusText.innerHTML = `<strong style="color: red;">Verification Failed:</strong> ${result.message || 'Unknown error'}`;
+            }
+        } catch (error) {
+            loadingSpinner.style.display = 'none';
+            statusText.innerHTML = `<strong style="color: red;">Network Error:</strong> ${error.message}`;
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>

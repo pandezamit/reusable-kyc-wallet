@@ -1,0 +1,11 @@
+sdk-version: 2.6.3
+name: reusable-kyc
+version: 0.0.1
+source: daml
+init-script: Daml.Init:setup
+dependencies:
+  - daml-prim
+  - daml-stdlib
+  - daml-script
+sandbox-options:
+  - --wall-clock-time

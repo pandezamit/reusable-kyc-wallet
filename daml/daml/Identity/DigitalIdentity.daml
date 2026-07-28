@@ -1,0 +1,17 @@
+module Identity.DigitalIdentity where
+
+import DA.Time
+
+template DigitalIdentity
+  with
+    walletProvider : Party
+    customer : Party
+    did : Text
+    walletId : Text
+    kycRecordIds : [Text]
+    activeCredentials : [Text]
+    consentRecordIds : [Text]
+    createdAt : Time
+  where
+    signatory walletProvider
+    observer customer
