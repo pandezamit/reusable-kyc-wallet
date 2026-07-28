@@ -6,16 +6,20 @@
     <title>Lloyds Bank | Digital Onboarding</title>
     <style>
         :root {
+            /* Authentic Lloyds Brand Colors from Source CSS */
             --lloyds-green: #006A4D;
-            --lloyds-dark-green: #014D38;
+            --lloyds-dark-green: #024731;
+            --lloyds-calm-green: #C7FFC6;
             --lloyds-light-green: #E6F2EF;
-            --lloyds-black: #1C1C1C;
+            --lloyds-black: #000000;
             --lloyds-grey: #595959;
             --lloyds-light-grey: #F2F2F2;
             --lloyds-border: #D9D9D9;
             --lloyds-white: #FFFFFF;
             --lloyds-error: #D4211C;
-            --font-lloyds: 'Lloyds Jack', 'Arial', 'Helvetica', sans-serif;
+            
+            /* Authentic Font Stack from Source HTML */
+            --font-lloyds: 'GT Ultra Median', 'GT Ultra Standard', 'Lloyds Jack', Arial, Helvetica, sans-serif;
         }
 
         * { box-sizing: border-box; }
@@ -39,7 +43,7 @@
         .btn-outline { border: 2px solid var(--lloyds-green); color: var(--lloyds-green); padding: 8px 20px; border-radius: 4px; font-weight: 700; text-decoration: none; font-size: 15px; background: white; cursor: pointer; transition: all 0.2s; }
         .btn-outline:hover { background: var(--lloyds-light-green); }
 
-        /* Hero Section */
+        /* Hero Section (Matching c-106-hero pattern) */
         .hero { display: flex; max-width: 1200px; margin: 0 auto; padding: 40px; min-height: 400px; align-items: center; }
         .hero-left { flex: 1; padding-right: 40px; }
         .hero-left h1 { font-weight: 700; font-size: 42px; margin: 0 0 15px 0; color: var(--lloyds-green); line-height: 1.1; }
@@ -80,7 +84,7 @@
         .step-indicator { font-size: 14px; color: var(--lloyds-grey); margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         label { display: block; margin-bottom: 8px; font-weight: 700; font-size: 16px; color: var(--lloyds-black); }
 
-        .switch-notice { margin-top: 40px; padding: 20px; background: var(--lloyds-light-grey); border-left: 4px solid var(--lloyds-green); font-size: 14px; color: var(--lloyds-grey); }
+        .switch-notice { margin-top: 40px; padding: 20px; background: var(--lloyds-light-green); border-left: 4px solid var(--lloyds-green); font-size: 14px; color: var(--lloyds-black); border-radius: 4px; }
 
         /* Document Selection Buttons */
         .doc-selector { display: flex; gap: 15px; margin-bottom: 20px; }
