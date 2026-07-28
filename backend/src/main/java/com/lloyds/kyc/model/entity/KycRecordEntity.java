@@ -12,7 +12,7 @@ import java.util.UUID;
 public class KycRecordEntity {
     @Id
     private UUID id;
-    private String customerId;
+    private String customerId;  // This is the field name
     @Enumerated(EnumType.STRING)
     private KycStatus status;
     private String cantonContractId;

@@ -3,27 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reusable KYC - Document Scanner</title>
+    <title>Reusable KYC - Digital Wallet</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center; align-items: flex-start;
             min-height: 100vh;
         }
         .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            max-width: 800px;
-            width: 100%;
+            background: white; padding: 30px; border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 800px; width: 100%;
         }
-        h2 { color: #004a99; margin-top: 0; }
+        h2 { color: #004a99; margin-top: 0; text-align: center; }
+
+        /* Tabs */
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tab {
+            padding: 10px 20px; cursor: pointer; border: none; background: none;
+            font-size: 16px; font-weight: bold; color: #777; border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab.active { color: #004a99; border-bottom: 3px solid #004a99; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
         input[type="text"] {
@@ -35,15 +40,11 @@
             border: 2px dashed #004a99; padding: 20px; border-radius: 8px;
             background: #fafafa; margin-bottom: 20px;
         }
-        video, canvas {
-            border: 1px solid #ccc; border-radius: 4px;
-            max-width: 100%; background: #000;
-        }
+        video, canvas { border: 1px solid #ccc; border-radius: 4px; max-width: 100%; background: #000; }
         .hidden { display: none; }
         .btn {
-            padding: 10px 20px; border: none; border-radius: 4px;
-            cursor: pointer; font-size: 16px; margin: 5px;
-            transition: background 0.3s;
+            padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;
+            font-size: 16px; margin: 5px; transition: background 0.3s;
         }
         .btn-primary { background: #004a99; color: white; }
         .btn-primary:hover { background: #003366; }
@@ -51,9 +52,10 @@
         .btn-success:hover { background: #218838; }
         .btn-danger { background: #dc3545; color: white; }
         .btn-danger:hover { background: #c82333; }
-        #statusContainer {
-            margin-top: 20px; padding: 15px; border-radius: 4px;
-            background: #e9ecef; display: none;
+
+        .status-box {
+            margin-top: 20px; padding: 15px; border-radius: 4px; background: #e9ecef;
+            display: none;
         }
         .spinner {
             border: 4px solid #f3f3f3; border-top: 4px solid #004a99;
@@ -67,49 +69,74 @@
 <body>
 
 <div class="container">
-    <h2>Reusable KYC Document Scanner</h2>
-    
-    <div class="form-group">
-        <label for="customerId">Customer ID</label>
-        <input type="text" id="customerId" placeholder="e.g., cust12345" value="cust123">
-    </div>
-    <div class="form-group">
-        <label for="did">Decentralized ID (DID)</label>
-        <input type="text" id="did" placeholder="e.g., did:lloyds:123" value="did:lloyds:123">
+    <h2>Reusable KYC Digital Wallet</h2>
+
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('scanTab')">Scan New Document</button>
+        <button class="tab" onclick="switchTab('walletTab')">Check Existing Wallet</button>
     </div>
 
-    <div class="scanner-box">
-        <video id="video" width="640" height="480" autoplay></video>
-        <canvas id="canvas" width="640" height="480" class="hidden"></canvas>
-        <div style="margin-top: 15px;">
-            <button id="startBtn" class="btn btn-primary">1. Start Camera</button>
-            <button id="captureBtn" class="btn btn-success hidden">2. Capture Document</button>
-            <button id="retakeBtn" class="btn btn-danger hidden">Retake</button>
-            <button id="submitBtn" class="btn btn-primary hidden">3. Submit for KYC</button>
+    <!-- TAB 1: SCAN DOCUMENT -->
+    <div id="scanTab" class="tab-content active">
+        <div class="form-group">
+            <label for="customerId">Customer ID</label>
+            <input type="text" id="customerId" placeholder="e.g., cust12345" value="cust123">
+        </div>
+        <div class="form-group">
+            <label for="did">Decentralized ID (DID)</label>
+            <input type="text" id="did" placeholder="e.g., did:lloyds:123" value="did:lloyds:123">
+        </div>
+
+        <div class="scanner-box">
+            <video id="video" width="640" height="480" autoplay></video>
+            <canvas id="canvas" width="640" height="480" class="hidden"></canvas>
+            <div style="margin-top: 15px;">
+                <button id="startBtn" class="btn btn-primary">1. Start Camera</button>
+                <button id="captureBtn" class="btn btn-success hidden">2. Capture Document</button>
+                <button id="retakeBtn" class="btn btn-danger hidden">Retake</button>
+                <button id="submitBtn" class="btn btn-primary hidden">3. Submit for KYC</button>
+            </div>
+        </div>
+        <div id="statusContainerScan" class="status-box">
+            <div id="loadingSpinnerScan" class="spinner"></div>
+            <span id="statusTextScan">Processing...</span>
         </div>
     </div>
 
-    <div id="statusContainer">
-        <div id="loadingSpinner" class="spinner"></div>
-        <span id="statusText">Processing...</span>
+    <!-- TAB 2: CHECK WALLET -->
+    <div id="walletTab" class="tab-content">
+        <div class="form-group">
+            <label for="walletClientId">Enter Client ID to fetch Digital Wallet</label>
+            <input type="text" id="walletClientId" placeholder="e.g., cust123">
+        </div>
+        <button id="fetchWalletBtn" class="btn btn-primary">Fetch KYC Status</button>
+
+        <div id="statusContainerWallet" class="status-box">
+            <div id="loadingSpinnerWallet" class="spinner"></div>
+            <span id="statusTextWallet">Fetching from Canton Ledger...</span>
+        </div>
     </div>
 </div>
 
 <script>
+    // Tab Switching Logic
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+    }
+
+    // Webcam Logic
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const startBtn = document.getElementById('startBtn');
     const captureBtn = document.getElementById('captureBtn');
     const retakeBtn = document.getElementById('retakeBtn');
     const submitBtn = document.getElementById('submitBtn');
-    const statusContainer = document.getElementById('statusContainer');
-    const statusText = document.getElementById('statusText');
-    const loadingSpinner = document.getElementById('loadingSpinner');
-    
     let stream = null;
     let capturedBlob = null;
 
-    // 1. Start Webcam
     startBtn.addEventListener('click', async () => {
         try {
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -122,102 +149,105 @@
         }
     });
 
-    // 2. Capture Frame
     captureBtn.addEventListener('click', () => {
-        const context = canvas.getContext('2d');
-        context.drawImage(video, 0, 0, 640, 480);
-        
-        // Stop the video stream
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-        
+        canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+        if (stream) stream.getTracks().forEach(track => track.stop());
         video.classList.add('hidden');
         canvas.classList.remove('hidden');
         captureBtn.classList.add('hidden');
         retakeBtn.classList.remove('hidden');
         submitBtn.classList.remove('hidden');
-
-        // Convert canvas to Blob (JPEG)
-        canvas.toBlob(blob => {
-            capturedBlob = blob;
-        }, 'image/jpeg', 0.9);
+        canvas.toBlob(blob => capturedBlob = blob, 'image/jpeg', 0.9);
     });
 
-    // Retake Photo
     retakeBtn.addEventListener('click', async () => {
         canvas.classList.add('hidden');
         retakeBtn.classList.add('hidden');
         submitBtn.classList.add('hidden');
-        
-        // Restart camera
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
         video.classList.remove('hidden');
         captureBtn.classList.remove('hidden');
     });
 
-    // 3. Submit to Backend
     submitBtn.addEventListener('click', async () => {
         const customerId = document.getElementById('customerId').value;
         const did = document.getElementById('did').value;
+        if (!customerId || !did || !capturedBlob) return alert("Missing fields or document.");
 
-        if (!customerId || !did) {
-            alert("Please enter Customer ID and DID.");
-            return;
-        }
-        if (!capturedBlob) {
-            alert("No document captured.");
-            return;
-        }
+        const statusBox = document.getElementById('statusContainerScan');
+        const spinner = document.getElementById('loadingSpinnerScan');
+        const statusText = document.getElementById('statusTextScan');
 
-        // Show loading
-        statusContainer.style.display = 'block';
-        loadingSpinner.style.display = 'inline-block';
+        statusBox.style.display = 'block';
+        spinner.style.display = 'inline-block';
         statusText.innerText = "Submitting to Blockchain & Mitek for verification...";
         submitBtn.disabled = true;
 
-        // Construct Multipart Form Data
         const formData = new FormData();
-        
-        // Append JSON request as a Blob (Spring Boot expects application/json for the request part)
-        const requestJson = JSON.stringify({ customerId: customerId, did: did });
-        const requestBlob = new Blob([requestJson], { type: 'application/json' });
-        
-        formData.append('request', requestBlob);
+        formData.append('request', new Blob([JSON.stringify({ customerId, did })], { type: 'application/json' }));
         formData.append('document', capturedBlob, 'scanned-document.jpg');
 
         try {
-            const response = await fetch('/api/v1/kyc/initiate', {
-                method: 'POST',
-                body: formData
-            });
-
+            const response = await fetch('/api/v1/kyc/initiate', { method: 'POST', body: formData });
             const result = await response.json();
+            spinner.style.display = 'none';
 
-            loadingSpinner.style.display = 'none';
-            
             if (response.ok) {
-                statusText.innerHTML = `
-                    <strong style="color: green;">KYC Verification Successful!</strong><br><br>
+                statusText.innerHTML = `<strong style="color: green;">KYC Verification Successful!</strong><br><br>
                     <strong>Customer ID:</strong> ${result.customerId}<br>
                     <strong>Status:</strong> ${result.status}<br>
                     <strong>Mitek Dossier ID:</strong> ${result.mitekDossierId}<br>
                     <strong>Canton Contract ID:</strong> ${result.cantonContractId}<br>
-                    <strong>Verified At:</strong> ${new Date(result.verifiedAt).toLocaleString()}<br>
-                    <strong>Expires At:</strong> ${new Date(result.expiresAt).toLocaleString()}
-                `;
+                    <strong>Expires At:</strong> ${new Date(result.expiresAt).toLocaleString()}`;
             } else {
                 statusText.innerHTML = `<strong style="color: red;">Verification Failed:</strong> ${result.message || 'Unknown error'}`;
             }
         } catch (error) {
-            loadingSpinner.style.display = 'none';
+            spinner.style.display = 'none';
             statusText.innerHTML = `<strong style="color: red;">Network Error:</strong> ${error.message}`;
         } finally {
             submitBtn.disabled = false;
         }
     });
-</script>
 
+    // Fetch Wallet Logic
+    document.getElementById('fetchWalletBtn').addEventListener('click', async () => {
+        const clientId = document.getElementById('walletClientId').value;
+        if (!clientId) return alert("Please enter a Client ID.");
+
+        const statusBox = document.getElementById('statusContainerWallet');
+        const spinner = document.getElementById('loadingSpinnerWallet');
+        const statusText = document.getElementById('statusTextWallet');
+
+        statusBox.style.display = 'block';
+        spinner.style.display = 'inline-block';
+        statusText.innerText = `Fetching KYC status from Canton Ledger for ${clientId}...`;
+
+        try {
+            // GET call to fetch existing wallet/KYC status
+            const response = await fetch(`/api/v1/kyc/${clientId}/status`);
+            const result = await response.json();
+            spinner.style.display = 'none';
+
+            if (response.ok) {
+                statusText.innerHTML = `<strong style="color: green;">Digital Wallet Found!</strong><br><br>
+                    <strong>Customer ID:</strong> ${result.customerId}<br>
+                    <strong>KYC Status:</strong> ${result.status}<br>
+                    <strong>Canton Contract ID:</strong> ${result.cantonContractId}<br>
+                    <strong>Mitek Dossier ID:</strong> ${result.mitekDossierId}<br>
+                    <strong>Verified At:</strong> ${new Date(result.verifiedAt).toLocaleString()}<br>
+                    <strong>Expires At:</strong> ${new Date(result.expiresAt).toLocaleString()}`;
+            } else if (response.status === 404) {
+                statusText.innerHTML = `<strong style="color: orange;">No Active KYC Found:</strong> ${result.message || 'Please initiate a new KYC scan.'}`;
+            } else {
+                statusText.innerHTML = `<strong style="color: red;">Error:</strong> ${result.message || 'Failed to fetch wallet'}`;
+            }
+        } catch (error) {
+            spinner.style.display = 'none';
+            statusText.innerHTML = `<strong style="color: red;">Network Error:</strong> ${error.message}`;
+        }
+    });
+</script>
 </body>
 </html>
