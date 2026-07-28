@@ -1,0 +1,247 @@
+To create an interactive web-based application that scans documents via a webcam and submits them to your Spring Boot backend, we can use standard HTML5, JavaScript (using navigator.mediaDevices.getUserMedia for webcam access), and CSS.
+
+Spring Boot automatically serves static files placed in the src/main/resources/static folder.
+
+1. Create the Frontend Application
+Create a new file named index.html inside your backend project at this exact path:
+reusable-kyc-wallet/backend/src/main/resources/static/index.html
+
+Paste the following code into it:
+
+2. Run the Application
+Ensure you are in the backend directory.
+Start the Spring Boot application:
+bash
+
+mvn spring-boot:run
+Open your browser and navigate to:
+http://localhost:8080/
+How it works:
+Webcam Access: The app uses the native browser API navigator.mediaDevices.getUserMedia to request access to your webcam.
+Capture Document: When you click "Capture Document", it draws the current video frame onto an HTML5 <canvas>, stops the webcam stream, and converts the canvas drawing into a JPEG Blob.
+Multipart Form Submission: It packages your customerId and did into a JSON Blob, appends both the JSON and the Image Blob to a FormData object, and POSTs it to the backend at /api/v1/kyc/initiate.
+Backend Processing: The Spring Boot backend receives the file, saves it to the mock S3 storage, computes the hash, calls the mock Mitek API, and writes the mock Canton Smart Contract.
+Result Display: The UI displays the resulting Canton Contract ID, Mitek Dossier ID, and Verification Status directly to the user.
+prepare the detailed explanation of end to end code in the backend service and architecture diagram.
+
+Thought Process
+Here is a detailed, end-to-end technical explanation of the backend architecture, the code flow, and how it maps to the overall system architecture diagram.
+
+1. High-Level Architecture Diagram
+The system follows a Hybrid Architecture: Sensitive PII (Personal Identifiable Information) is kept off-chain in encrypted storage, while identity hashes, consent, and verification attestations are recorded immutably on the Canton Ledger (Blockchain).
+
+text
+
+[ Customer / UI ]                          [ Partner Bank / Product ]
+       |                                              |
+       v                                              v
++----------------------------------------------------------+
+|               SPRING BOOT BACKEND (API Layer)            |
+|                                                          |
+|  [ Wallet Controller ]  [ KYC Controller ]  [ Consent ]  |
++----------------------------------------------------------+
+       |                                  |
+       v                                  v
++------------------------+      +-------------------------+
+| KycOrchestrationSvc    |<---->| CantonLedgerService     |
+| (The 6-Step Flow Brain)|      | (gRPC to Canton)        |
++------------------------+      +-------------------------+
+       |       |       |                  |
+       v       v       v                  v
++--------+ +--------+ +--------+    +-----------+
+| Mitek  | | Doc S3 | | Audit  |    | Canton    |
+| KyC API| | MinIO  | |Svc/DB  |    | Ledger    |
++--------+ +--------+ +--------+    +-----------+
+The 6-Step End-to-End Flow (From Architecture Diagram)
+Product checks user on Wallet: A customer applies for a new product (e.g., credit card).
+Wallet checks KYC on Blockchain: The backend queries the Canton Ledger to see if an active KycRecord contract exists.
+3a. If Active → Share Digital ID: The backend uses the existing record and shares the status with the new product.
+3b. If Not Present/Expired → Initiate Mitek: The backend asks the user to scan documents (via the webcam UI), sends them to Mitek for verification, and stores them in S3.
+Result on Blockchain + Docs in Storage: Upon Mitek approval, a hash of the document is stored in MinIO, and a new KycRecord is minted on Canton.
+Wallet shares KYC status: The API returns the verified status and Canton contract ID to the product.
+ReKYC Triggered: A scheduled Quartz job monitors expiry dates and triggers step 3b again automatically.
+2. Backend Code Architecture (Layer-by-Layer)
+The Spring Boot application is structured into standard decoupled layers to ensure separation of concerns, testability, and maintainability.
+
+Layer 1: Controllers (REST API Entry Point)
+KycController.java: Exposes POST /api/v1/kyc/initiate. It accepts multipart/form-data containing a JSON request (Customer ID, DID) and a file (the scanned document). It delegates immediately to the Orchestration service.
+Layer 2: Orchestration (The Brain)
+KycOrchestrationService.java: This is the most critical class. It implements the 6-step flow. It doesn't contain business logic itself; rather, it coordinates transactions across multiple external and internal services (Canton, Mitek, S3, DB, Audit).
+Layer 3: Integration Services (External Gateways)
+CantonLedgerService.java: Handles all gRPC calls to the Canton participant node. In a production environment, this uses the DamlLedgerClient to exercise DAML choices (like Create KycRecord).
+MitekIntegrationService.java: REST client (using RestClient or WebClient) that handles OAuth2 authentication with Mitek, creates dossiers, uploads evidence, and polls for AI verification results.
+DocumentStorageService.java: Uses AWS SDK to interact with S3/MinIO. Handles AES-256 encryption before writing to the bucket and computes SHA-256 hashes.
+Layer 4: Data Access (Persistence)
+JPA Repositories & Entities: While Canton is the source of truth for immutable records, PostgreSQL is used as a read-model cache and for tracking operational data (e.g., Mitek dossier IDs, local file references, audit logs for fast querying).
+Flyway Migration (V1__initial_schema.sql): Ensures the database schema is version-controlled and created automatically on startup.
+3. Deep Dive: The KycOrchestrationService Code Flow
+Here is exactly how the code maps to the architecture diagram when the user clicks "Submit for KYC" on the frontend:
+
+java
+
+@Transactional
+public KycRecordEntity initiateKyc(KycInitiateRequest request, MultipartFile document) {
+    String customerId = request.getCustomerId();
+
+    // STEP 2: Wallet checks KYC status on Blockchain (via DB cache synced with Canton)
+    KycRecordEntity existingKyc = kycRecordRepository.findByCustomerId(customerId).orElse(null);
+
+    if (existingKyc != null && existingKyc.getStatus() == KycStatus.ACTIVE) {
+        // STEP 3a: KYC Active -> Reuse Identity
+        auditService.logEvent("KYC_INITIATED", customerId, "Existing Active KYC found. Sharing status.");
+        return existingKyc; // Short-circuits the flow, saving time and money
+    }
+
+    // STEP 3b: If KYC Not Present/Expired -> Initiate KYC via Mitek
+    auditService.logEvent("KYC_INITIATED", customerId, "Initiating new KYC via Mitek.");
+    String dossierId = mitekIntegrationService.createDossier(customerId);
+
+    // STEP 4a: Docs in Secure Storage (Off-chain)
+    String storageRef = documentStorageService.storeDocument(customerId, document);
+    String docHash = documentStorageService.computeHash(document);
+
+    // STEP 4b: Mitek AI Verification
+    boolean verified = mitekIntegrationService.submitDocuments(dossierId, document);
+
+    // Prepare local entity
+    KycRecordEntity kycRecord = new KycRecordEntity();
+    kycRecord.setId(UUID.randomUUID());
+    kycRecord.setCustomerId(customerId);
+    kycRecord.setMitekDossierId(dossierId);
+    kycRecord.setVerifiedAt(LocalDateTime.now());
+    kycRecord.setExpiresAt(LocalDateTime.now().plusYears(1));
+
+    if (verified) {
+        // STEP 4c: KYC Result stored on Blockchain (On-chain)
+        // We only store the HASH, never the PII document itself
+        String cantonContractId = cantonLedgerService.createKycRecord(customerId, docHash);
+        kycRecord.setCantonContractId(cantonContractId);
+        kycRecord.setStatus(KycStatus.ACTIVE);
+    } else {
+        kycRecord.setStatus(KycStatus.REJECTED);
+    }
+
+    // Save to local DB for fast querying next time
+    kycRecordRepository.save(kycRecord);
+
+    // Immutable Audit Log
+    auditService.logEvent("KYC_COMPLETED", customerId, "Status: " + kycRecord.getStatus());
+
+    // STEP 5: Wallet shares KYC status/ID with Product (Returned in HTTP Response)
+    return kycRecord;
+}
+4. DAML Smart Contracts (Canton Ledger)
+The reason we use Canton (DAML) instead of a standard database is multi-party trust. Partner banks can trust the KYC status without needing to see the physical documents, and regulators can audit the consent trail without exposing PII.
+
+KycRecord.daml: This template represents the verified identity.
+Signatories: Requires both the kycProvider (Lloyds) and the customer to agree to the contract.
+Data: Stores did, status, verificationLevel, and documentHashList.
+Choices: Includes ExpireKyc (callable only by the bank) and ShareWithParty (callable only by the customer, implementing consent-based sharing).
+ConsentRecord.daml: Ensures that a partner bank cannot view a customer's KYC status unless the customer exercises a choice to grant them access. This makes audits legally sound.
+5. ReKYC Lifecycle Engine (Step 6)
+In a full production system, the ReKycSchedulerService utilizes Spring's @Scheduled annotation or Quartz:
+
+Every night at 2 AM, it queries the database for kyc_records where expiresAt is within the next 30 days.
+It triggers a notification to the customer via NotificationService ("Your KYC is expiring soon").
+If the customer doesn't respond, on the expiry date, it calls cantonLedgerService.expireKycRecord() to update the blockchain, and updates the local DB status to EXPIRED, forcing step 3b to occur next time the user applies for a product.
+PROVIde a detailed explanation of the backend service and generate teh architecture diagram for the end to end service
+
+Thought Process
+Here is a comprehensive, lead-developer-level explanation of the backend service architecture, complete with an end-to-end architecture diagram and a deep dive into how the microservices coordinate to execute the Reusable KYC flow.
+
+1. End-to-End Architecture Diagram
+I have designed this architecture diagram using Mermaid.js. If your Markdown viewer supports Mermaid (like GitHub, Notion, or VS Code), it will render visually. Otherwise, you can copy the code block into mermaid.live to view it.
+
+External Infrastructure
+
+Canton Permissioned Ledger
+
+Spring Boot Backend Microservice
+
+Unsupported markdown: list
+Request KYC Status
+
+Query Audit Trail
+
+Check/Write Status
+
+Verify Document
+
+Store PII Hash & Doc
+
+Log Event
+
+Manage Sharing
+
+gRPC Submit Choices
+
+gRPC Submit Choices
+
+gRPC Submit Choices
+
+REST API
+
+Put Object
+
+Save Local Cache
+
+Trigger Expiry Flow
+
+👨‍💻 Customer / Web UI
+
+🏦 Partner Bank / Product
+
+👮 Regulator
+
+REST API Layer: Wallet & KYC Controllers
+
+KycOrchestrationService
+Core 6-Step Flow Brain
+
+CantonLedgerService
+gRPC Integration
+
+MitekIntegrationService
+REST Client + OAuth2
+
+DocumentStorageService
+S3 SDK + AES-256
+
+ConsentService
+
+AuditService
+
+ReKycSchedulerService
+Quartz Cron Jobs
+
+KycRecord Smart Contract
+
+ConsentRecord Smart Contract
+
+AuditTrail Smart Contract
+
+Mitek Identity Cloud
+AI Document Verification
+
+MinIO / S3
+Encrypted Document Vault
+
+PostgreSQL
+Operational DB & Cache
+
+2. Backend Service Layer: Detailed Explanation
+The Spring Boot backend acts as the trust bridge between off-chain PII (Personal Identifiable Information) and on-chain attestations. It is structured to ensure no PII ever touches the blockchain.
+
+A. API Layer (Controllers)
+The entry point for all clients (Web UI, Partner Banks, Regulators).
+
+KycController: Exposes POST /api/v1/kyc/initiate. It receives multipart/form-data (JSON metadata + the scanned document image) and passes it to the orchestrator.
+WalletController: Exposes endpoints to create digital identity wallets and check dashboard statuses.
+ConsentController: Allows customers to grant or revoke partner bank access to their KYC attestations.
+B. The Brain: KycOrchestrationService
+This service implements the 6-step architecture flow. It does not contain low-level logic; instead, it coordinates transactions across multiple services to ensure atomicity and auditability.
+
+Check Existing KYC: Queries the local DB cache (synced with Canton) to see if the user already has an ACTIVE KYC. If yes, it short-circuits and returns the existing VC (Verifiable Credential).
+Initiate Verification: Calls MitekIntegrationService to create a verification dossier.
+Secure Storage: Calls DocumentStorageService to encrypt and store the document, returning a SHA-256 hash.
+AI Verification: Sends the document to Mitek for biometric/f
