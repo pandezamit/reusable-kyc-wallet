@@ -17,3 +17,37 @@ mvn spring-boot:run
 cd docker
 docker-compose up -d
 \`\`\`
+
+### Canton file
+```bash
+https://github.com/digital-asset/canton/releases/download/v3.5.10/canton-open-source-3.5.10.zip
+unzip it
+cd lib
+java -jar canton-open-source-3.5.10.jar --config my-node.conf
+
+health.status
+import com.digitalasset.canton.config.RequireTypes.PositiveInt
+import com.digitalasset.canton.version.ProtocolVersion
+import com.digitalasset.canton.admin.api.client.data.StaticSynchronizerParameters
+
+bootstrap.synchronizer(
+>   synchronizerName = "my-synchronizer",
+>   sequencers = sequencers.all,
+>   mediators = mediators.all,
+>   synchronizerOwners = sequencers.all,
+>   synchronizerThreshold = PositiveInt.one,
+>   staticSynchronizerParameters = StaticSynchronizerParameters.defaultsWithoutKMS(ProtocolVersion.latest),
+> )
+
+sequencers.local
+mediators.local
+participants.local
+participants.local.head.synchronizers.connect_local(sequencers.local.head, alias = "my-synchronizer")
+```
+
+
+cd daml
+daml build
+daml ledger upload-dar --host localhost --port 5011 .\.daml\dist\reusable-kyc-0.0.1.dar
+daml start
+http://localhost:7575/v2/parties

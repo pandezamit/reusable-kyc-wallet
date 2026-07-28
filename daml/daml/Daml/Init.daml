@@ -13,6 +13,9 @@ setup = do
   regulator <- allocateParty "FCA_Regulator"  -- The auditing regulator
   partner <- allocateParty "Partner_Bank"     -- A 3rd party institution
 
+  -- 1a. Get the current ledger time
+  now <- getTime
+
   -- 2. Create an initial Digital Identity Wallet for the customer
   let walletArgs = DigitalIdentity with
         walletProvider = bank
@@ -22,7 +25,7 @@ setup = do
         kycRecordIds = []
         activeCredentials = []
         consentRecordIds = []
-        createdAt = getTime
+        createdAt = now
 
   -- Submit the create command to the ledger
   walletCid <- submit bank (createCmd walletArgs)
