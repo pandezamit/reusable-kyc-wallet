@@ -51,3 +51,11 @@ daml build
 daml ledger upload-dar --host localhost --port 5011 .\.daml\dist\reusable-kyc-0.0.1.dar
 daml start
 http://localhost:7575/v2/parties
+
+
+docker build -t canton-node:3.5.10 .
+
+docker run --rm -it --name canton-node -p 5011:5011 -p 10011:10011 -p 10012:10012 -p 10018:10018 -p 10019:10019 -p 10022:10022 canton-node:3.5.10
+
+java -jar canton-open-source-3.5.10.jar -c my-node.conf --bootstrap bootstrap.canton
+

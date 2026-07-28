@@ -1,0 +1,18 @@
+health.status
+import com.digitalasset.canton.config.RequireTypes.PositiveInt
+import com.digitalasset.canton.version.ProtocolVersion
+import com.digitalasset.canton.admin.api.client.data.StaticSynchronizerParameters
+
+bootstrap.synchronizer(
+   synchronizerName = "my-synchronizer",
+   sequencers = sequencers.all,
+   mediators = mediators.all,
+   synchronizerOwners = sequencers.all,
+   synchronizerThreshold = PositiveInt.one,
+   staticSynchronizerParameters = StaticSynchronizerParameters.defaultsWithoutKMS(ProtocolVersion.latest),
+ )
+
+sequencers.local
+mediators.local
+participants.local
+participants.local.head.synchronizers.connect_local(sequencers.local.head, alias = "my-synchronizer")
