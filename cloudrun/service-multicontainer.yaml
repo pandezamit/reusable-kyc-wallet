@@ -1,0 +1,61 @@
+# OPTIONAL / ADVANCED — only use this if you specifically want a live Canton
+# node running behind the same Cloud Run service as the backend (e.g. to hit
+# its health/admin endpoints during the demo). The backend's current code does
+# NOT call Canton at runtime (CantonLedgerService just returns mock UUIDs), so
+# for a straightforward hackathon demo, service.yaml (backend only) is enough
+# and far less likely to break during setup.
+#
+# Notes on this config:
+# - Cloud Run multi-container (sidecar) support requires the Cloud Run "beta"
+#   or GA multi-container feature to be enabled for your project/region.
+# - Only the container listed as the "ingress" container (backend, matching
+#   spec.template.spec.containers[].name referenced by no dependsOn) receives
+#   external traffic; canton is reachable only from backend, over localhost.
+# - The daml DAR upload is NOT done here: bake the .dar into the Canton image
+#   at build time instead (build it in a stage, COPY it in, and extend
+#   bootstrap.canton to call participants.local.head.dars.upload(...) on
+#   startup) since Cloud Run won't run a separate one-shot init container.
+#
+# Deploy with: gcloud run services replace cloudrun/service-multicontainer.yaml --region=REGION
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: kyc-backend-with-canton
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/container-dependencies: '{"backend":["canton"]}'
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "2"
+    spec:
+      containers:
+        - name: backend
+          image: REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/kyc-backend:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            - name: CANTON_LEDGER_HOST
+              value: "localhost"
+            - name: CANTON_LEDGER_PORT
+              value: "5011"
+        - name: canton
+          image: REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/kyc-canton:latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          startupProbe:
+            tcpSocket:
+              port: 5011
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 20
+  traffic:
+    - percent: 100
+      latestRevision: true

@@ -1,0 +1,30 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: kyc-backend
+  labels:
+    cloud.googleapis.com/location: asia-south1   # change to your preferred region
+spec:
+  template:
+    metadata:
+      annotations:
+        # Hackathon demo sizing: 1 instance always warm avoids cold-start during judging.
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "3"
+    spec:
+      containerConcurrency: 40
+      timeoutSeconds: 300
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/kyc-backend:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "cloudrun"
+  traffic:
+    - percent: 100
+      latestRevision: true

@@ -1,0 +1,43 @@
+substitutions:
+  _REGION: asia-south1
+  _REPO: kyc-repo
+  _IMAGE: kyc-backend
+  _SERVICE: kyc-backend
+
+steps:
+  # Build the backend image using backend/Dockerfile
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE}:${SHORT_SHA}"
+      - "-f"
+      - "backend/Dockerfile"
+      - "backend"
+
+  # Push it to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE}:${SHORT_SHA}"
+
+  # Deploy to Cloud Run
+  - name: "gcr.io/google.com/cloudsdk/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "${_SERVICE}"
+      - "--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE}:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+      - "--min-instances=1"
+      - "--max-instances=3"
+      - "--memory=1Gi"
+
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE}:${SHORT_SHA}"
+
+options:
+  logging: CLOUD_LOGGING_ONLY

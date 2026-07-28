@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  # 1) Canton ledger node (participant + sequencer + mediator, in-memory storage)
+  canton:
+    build:
+      context: ./canton
+      dockerfile: Dockerfile
+    container_name: kyc-canton
+    ports:
+      - "5011:5011"   # Ledger API
+      - "5012:5012"   # Participant Admin API
+      - "5013:5013"   # HTTP JSON Ledger API
+      - "5018:5018"   # Sequencer public API
+      - "5019:5019"   # Sequencer admin API
+      - "5020:5020"   # Mediator admin API
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5011'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    networks: [kyc-net]
+
+  # 2) Daml model: builds the .dar and uploads it to Canton once, then exits.
+  daml-init:
+    build:
+      context: ./daml
+      dockerfile: Dockerfile
+    container_name: kyc-daml-init
+    depends_on:
+      canton:
+        condition: service_healthy
+    environment:
+      CANTON_HOST: canton
+      CANTON_PORT: "5011"
+    restart: "no"
+    networks: [kyc-net]
+
+  # 3) Spring Boot backend (H2 in-memory DB, serves API + static demo UI on :8080)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kyc-backend
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      CANTON_LEDGER_HOST: canton
+      CANTON_LEDGER_PORT: "5011"
+    depends_on:
+      canton:
+        condition: service_healthy
+    networks: [kyc-net]
+
+networks:
+  kyc-net:
+    driver: bridge
