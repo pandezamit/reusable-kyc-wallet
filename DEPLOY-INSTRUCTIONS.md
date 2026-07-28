@@ -69,6 +69,28 @@ gcloud run services add-iam-policy-binding kyc-backend --region asia-south1 \
 
 If you specifically want a live Canton node reachable in the same deployment (e.g. to show its admin/health endpoint), see `cloudrun/service-multicontainer.yaml` — it deploys backend + Canton as a multi-container Cloud Run service, with Canton reachable only from the backend over `localhost`. Read the comments at the top of that file first: it needs the DAR baked into the Canton image at build time (Cloud Run won't run the separate one-shot `daml-init` job), and multi-container support needs to be available in your project/region. For a hackathon demo, I'd only reach for this if a judge specifically wants to see Canton itself running live — otherwise it adds risk for no visible payoff right now, given the backend doesn't call it.
 
+### Optional/advanced: Canton as its own public Cloud Run service (upload the DAR from your machine)
+
+If instead you want to deploy Canton standalone and run `daml ledger upload-dar` against it from your local machine (rather than baking the DAR in, or using the `daml-init` job), use `cloudrun/deploy-canton.sh`:
+
+```bash
+export PROJECT_ID=your-gcp-project-id
+export REGION=asia-south1
+chmod +x cloudrun/deploy-canton.sh
+./cloudrun/deploy-canton.sh
+```
+
+This deploys `canton/Dockerfile` as its own service (`kyc-canton`) with `--use-http2` (the Ledger API is gRPC), `--no-cpu-throttling` (Canton's background work needs CPU outside of request handling), and `--min-instances=1 --max-instances=1` (storage is in-memory, so more than one replica — or scaling to zero — loses/forks ledger state). `canton/my-node.conf`'s `ledger-api` port now reads `${?PORT}` so it binds to whatever port Cloud Run assigns instead of the hardcoded `5011` used locally.
+
+Once deployed, build the dar locally and upload it over the public HTTPS endpoint (Cloud Run terminates TLS at the edge, so the client connects on port 443 with `--tls`):
+
+```bash
+cd daml && daml build -o output.dar
+daml ledger upload-dar --host <service>-<hash>-<region>.a.run.app --port 443 --tls output.dar
+```
+
+`--allow-unauthenticated` is set so the `daml` CLI can reach it without extra IAM plumbing — that means the raw Ledger API is public with no auth, which is fine for a short demo but shouldn't be left running afterward. Also keep in mind `storage = memory`: any Cloud Run restart of the container (redeploy, infra maintenance, OOM) wipes the ledger and any uploaded DAR, so re-run the upload if that happens.
+
 ---
 
 ## 3. If you later wire the backend up to real Canton/MinIO

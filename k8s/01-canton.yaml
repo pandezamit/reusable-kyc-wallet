@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canton
+  namespace: kyc-demo
+  labels:
+    app: canton
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # in-memory storage: never run two canton pods at once
+  selector:
+    matchLabels:
+      app: canton
+  template:
+    metadata:
+      labels:
+        app: canton
+    spec:
+      containers:
+        - name: canton
+          image: REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/canton:latest   # <-- replace after pushing your image
+          ports:
+            - name: ledger-api
+              containerPort: 5011
+            - name: admin-api
+              containerPort: 5012
+            - name: json-api
+              containerPort: 5013
+            - name: seq-public
+              containerPort: 5018
+            - name: seq-admin
+              containerPort: 5019
+            - name: med-admin
+              containerPort: 5020
+          readinessProbe:
+            tcpSocket:
+              port: 5011
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            failureThreshold: 20
+          livenessProbe:
+            tcpSocket:
+              port: 5011
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "3Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: canton
+  namespace: kyc-demo
+  labels:
+    app: canton
+spec:
+  type: ClusterIP
+  selector:
+    app: canton
+  ports:
+    - name: ledger-api
+      port: 5011
+      targetPort: 5011
+    - name: admin-api
+      port: 5012
+      targetPort: 5012
+    - name: json-api
+      port: 5013
+      targetPort: 5013
+    - name: seq-public
+      port: 5018
+      targetPort: 5018
+    - name: seq-admin
+      port: 5019
+      targetPort: 5019
+    - name: med-admin
+      port: 5020
+      targetPort: 5020

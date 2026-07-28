@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: daml-init
+  namespace: kyc-demo
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-canton
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z canton 5011; do
+                echo "waiting for canton:5011..."
+                sleep 5
+              done
+      containers:
+        - name: daml-init
+          image: REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/daml-init:latest   # <-- replace after pushing your image
+          env:
+            - name: CANTON_HOST
+              value: "canton"
+            - name: CANTON_PORT
+              value: "5011"

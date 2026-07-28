@@ -23,19 +23,19 @@ services:
     networks: [kyc-net]
 
   # 2) Daml model: builds the .dar and uploads it to Canton once, then exits.
-  daml-init:
-    build:
-      context: ./daml
-      dockerfile: Dockerfile
-    container_name: kyc-daml-init
-    depends_on:
-      canton:
-        condition: service_healthy
-    environment:
-      CANTON_HOST: canton
-      CANTON_PORT: "5011"
-    restart: "no"
-    networks: [kyc-net]
+  # daml-init:
+  #   build:
+  #     context: ./daml
+  #     dockerfile: Dockerfile
+  #   container_name: kyc-daml-init
+  #   depends_on:
+  #     canton:
+  #       condition: service_healthy
+  #   environment:
+  #     CANTON_HOST: canton
+  #     CANTON_PORT: "5011"
+  #   restart: "no"
+  #   networks: [kyc-net]
 
   # 3) Spring Boot backend (H2 in-memory DB, serves API + static demo UI on :8080)
   backend:

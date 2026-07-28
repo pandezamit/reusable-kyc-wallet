@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: kyc-demo
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # H2 in-memory DB: keep it to a single pod
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      initContainers:
+        - name: wait-for-canton
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z canton 5011; do
+                echo "waiting for canton:5011..."
+                sleep 5
+              done
+      containers:
+        - name: backend
+          image: REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/backend:latest   # <-- replace after pushing your image
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: CANTON_LEDGER_HOST
+              value: "canton"
+            - name: CANTON_LEDGER_PORT
+              value: "5011"
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: kyc-demo
+  labels:
+    app: backend
+spec:
+  type: LoadBalancer   # GCP provisions an external Network Load Balancer with a public IP
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

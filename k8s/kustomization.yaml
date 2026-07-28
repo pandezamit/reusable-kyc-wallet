@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kyc-demo
+resources:
+  - 00-namespace.yaml
+  - 01-canton.yaml
+  - 02-daml-init-job.yaml
+  - 03-backend.yaml
