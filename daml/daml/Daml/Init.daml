@@ -1,0 +1,70 @@
+module Daml.Init where
+
+import Daml.Script
+import Daml.CustomerSeeds
+import Identity.DigitalIdentity
+import KYC.KycRecord
+import KYC.Types
+import DA.Time
+
+-- | Initialization script to set up parties, wallets, and KYC records on the sandbox
+setup : Script ()
+setup = do
+  -- 1. Allocate fixed infrastructure parties
+  bank      <- allocateParty "LloydsBank"     -- Acts as kycProvider / walletProvider
+  regulator <- allocateParty "FCA_Regulator"  -- The auditing regulator
+  partner   <- allocateParty "Partner_Bank"   -- A 3rd party institution
+
+  -- 1a. Get the current ledger time
+  now <- getTime
+
+  -- 2. For each customer seed: allocate their party, create their wallet,
+  --    and create their KycRecord, all linked together.
+  results <- mapA (createCustomer bank regulator partner now) customerSeeds
+
+  -- Log output so the developer knows the setup succeeded
+  debug ("Initialization complete. " <> show (length results) <> " customers, wallets, and KYC records created.")
+  pure ()
+
+-- | Allocates a party for one customer seed, then creates their wallet and
+--   KycRecord contracts, returning the created contract ids for reference.
+createCustomer
+  : Party -> Party -> Party -> Time -> CustomerSeed
+  -> Script (Party, ContractId DigitalIdentity, ContractId KycRecord)
+createCustomer bank regulator partner now seed = do
+  -- Allocate a party for this customer
+  customer <- allocateParty seed.customerName
+
+  let didText = "did:lloyds:" <> seed.did
+      expiresAt = addRelTime now seed.validityPeriod
+
+  -- Create the customer's Digital Identity Wallet, pre-linked to their KYC record id
+  walletCid <- submit bank
+    ( createCmd DigitalIdentity with
+        walletProvider  = bank
+        customer        = customer
+        did             = didText
+        walletId        = seed.walletId
+        kycRecordIds    = [seed.customerId]
+        activeCredentials = []
+        consentRecordIds  = []
+        createdAt       = now
+    )
+
+  -- Create the customer's KycRecord, co-signed by the bank and the customer
+  kycCid <- submitMulti [bank, customer] []
+    ( createCmd KycRecord with
+        kycProvider        = bank
+        customer           = customer
+        customerId         = seed.customerId
+        did                = didText
+        status             = seed.status
+        verificationLevel  = seed.verificationLevel
+        documentHashList   = seed.documentHashList
+        issuedAt           = now
+        expiresAt          = expiresAt
+        credentialHash     = seed.credentialHash
+        observers          = [regulator, partner]
+    )
+
+  pure (customer, walletCid, kycCid)

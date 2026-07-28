@@ -1,0 +1,33 @@
+module Daml.CustomerSeeds where
+
+import KYC.Types
+import DA.Time
+
+-- | A flat seed row describing everything needed to create one customer's
+--   wallet + KycRecord during initialization.
+data CustomerSeed = CustomerSeed
+  with
+    customerName      : Text             -- display / party alias, e.g. "Customer_01"
+    customerId        : Text             -- business customer id, e.g. "CUST-0001"
+    did               : Text             -- DID suffix / identifier, e.g. "cust0001"
+    walletId          : Text             -- wallet identifier, e.g. "wallet-0001"
+    status            : KycStatus        -- Pending | Active | Expired | Rejected
+    verificationLevel : VerificationLevel -- Level1 | Level2 | Level3
+    documentHashList  : [Text]           -- hashes of KYC documents on file
+    validityPeriod    : RelTime          -- how long the record is valid for, e.g. (days 365)
+    credentialHash    : Text             -- hash of the issued verifiable credential
+  deriving (Eq, Show)
+
+customerSeeds : [CustomerSeed]
+customerSeeds =
+  [ CustomerSeed "Customer_01" "CUST-0001" "cust0001" "wallet-0001" Active   Level2 ["hash-doc-0001-passport"]                              (days 365) "cred-hash-0001"
+  , CustomerSeed "Customer_02" "CUST-0002" "cust0002" "wallet-0002" Active   Level1 ["hash-doc-0002-nationalid"]                             (days 365) "cred-hash-0002"
+  , CustomerSeed "Customer_03" "CUST-0003" "cust0003" "wallet-0003" Pending  Level1 ["hash-doc-0003-driverslicense"]                          (days 180) "cred-hash-0003"
+  , CustomerSeed "Customer_04" "CUST-0004" "cust0004" "wallet-0004" Active   Level3 ["hash-doc-0004-passport", "hash-doc-0004-address"]       (days 730) "cred-hash-0004"
+  , CustomerSeed "Customer_05" "CUST-0005" "cust0005" "wallet-0005" Rejected Level1 ["hash-doc-0005-nationalid"]                              (days 90)  "cred-hash-0005"
+  , CustomerSeed "Customer_06" "CUST-0006" "cust0006" "wallet-0006" Active   Level2 ["hash-doc-0006-passport"]                                (days 365) "cred-hash-0006"
+  , CustomerSeed "Customer_07" "CUST-0007" "cust0007" "wallet-0007" Pending  Level1 ["hash-doc-0007-driverslicense"]                          (days 180) "cred-hash-0007"
+  , CustomerSeed "Customer_08" "CUST-0008" "cust0008" "wallet-0008" Active   Level2 ["hash-doc-0008-nationalid", "hash-doc-0008-address"]     (days 365) "cred-hash-0008"
+  , CustomerSeed "Customer_09" "CUST-0009" "cust0009" "wallet-0009" Expired  Level1 ["hash-doc-0009-passport"]                                (days 365) "cred-hash-0009"
+  , CustomerSeed "Customer_10" "CUST-0010" "cust0010" "wallet-0010" Active   Level3 ["hash-doc-0010-passport", "hash-doc-0010-address"]       (days 730) "cred-hash-0010"
+  ]
