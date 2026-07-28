@@ -1,0 +1,13 @@
+module KYC.Types where
+
+data KycStatus = Pending | Active | Expired | Rejected
+  deriving (Eq, Show)
+
+data DocumentType = Passport | DriversLicense | NationalId | ProofOfAddress
+  deriving (Eq, Show)
+
+data VerificationLevel = Level1 | Level2 | Level3
+  deriving (Eq, Show)
+
+data ConsentPurpose = KycSharing | ProductOnboarding | CrossBrandVerification
+  deriving (Eq, Show)

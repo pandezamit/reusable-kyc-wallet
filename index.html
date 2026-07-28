@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DocScan — Intelligent Document Validator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@200;400;500;700;900&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --bg-elevated: #1a1a1a;
+    --card: #222222;
+    --border: #333333;
+    --fg: #f0ece4;
+    --muted: #8a8578;
+    --accent: #d4a041;
+    --accent-dim: rgba(212,160,65,0.15);
+    --success: #4ade80;
+    --error: #f87171;
+    --warning: #fbbf24;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+
+  /* Animated background */
+  .bg-grid {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-image:
+      linear-gradient(rgba(212,160,65,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212,160,65,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridShift 20s linear infinite;
+  }
+
+  @keyframes gridShift {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(60px, 60px); }
+  }
+
+  .glow-orb {
+    position: fixed;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glow-orb-1 { background: var(--accent); top: -150px; right: -100px; animation: float1 12s ease-in-out infinite; }
+  .glow-orb-2 { background: #c06030; bottom: -200px; left: -100px; animation: float2 15s ease-in-out infinite; }
+
+  @keyframes float1 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-40px, 30px); }
+  }
+
+  @keyframes float2 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(30px, -40px); }
+  }
+
+  /* Camera container */
+  .camera-wrapper {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    background: #000;
+    aspect-ratio: 4/3;
+    transition: border-color 0.4s ease;
+  }
+
+  .camera-wrapper.detecting { border-color: var(--accent); }
+  .camera-wrapper.valid-capture { border-color: var(--success); }
+
+  .camera-wrapper video,
+  .camera-wrapper canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Document guide overlay */
+  .doc-guide {
+    position: absolute;
+    inset: 10%;
+    border: 2px dashed rgba(212,160,65,0.5);
+    border-radius: 8px;
+    pointer-events: none;
+    transition: all 0.4s ease;
+  }
+
+  .doc-guide.aligned {
+    border-color: var(--success);
+    box-shadow: inset 0 0 40px rgba(74,222,128,0.08);
+  }
+
+  .doc-guide .corner {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-color: var(--accent);
+    border-style: solid;
+    transition: border-color 0.4s ease;
+  }
+
+  .doc-guide.aligned .corner { border-color: var(--success); }
+
+  .corner.tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+  .corner.tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+  .corner.bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+  .corner.br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+  /* Scan line animation */
+  .scan-line {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 20px var(--accent), 0 0 60px rgba(212,160,65,0.3);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .scan-line.active {
+    opacity: 1;
+    animation: scanDown 1.5s ease-in-out;
+  }
+
+  @keyframes scanDown {
+    0% { top: 10%; }
+    100% { top: 90%; }
+  }
+
+  /* Capture button */
+  .capture-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 4px solid var(--accent);
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+
+  .capture-btn::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    transition: all 0.2s ease;
+  }
+
+  .capture-btn:hover { transform: scale(1.08); box-shadow: 0 0 30px rgba(212,160,65,0.3); }
+  .capture-btn:active::after { transform: scale(0.85); }
+  .capture-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Validation result cards */
+  .check-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  .check-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .check-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .check-icon.pass { background: rgba(74,222,128,0.12); color: var(--success); }
+  .check-icon.fail { background: rgba(248,113,113,0.12); color: var(--error); }
+  .check-icon.warn { background: rgba(251,191,36,0.12); color: var(--warning); }
+
+  .check-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    margin-top: 6px;
+    overflow: hidden;
+  }
+
+  .check-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.8s ease;
+    width: 0%;
+  }
+
+  .check-bar-fill.pass { background: var(--success); }
+  .check-bar-fill.fail { background: var(--error); }
+  .check-bar-fill.warn { background: var(--warning); }
+
+  /* Toast */
+  .toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .toast {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 300px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    animation: toastIn 0.4s ease;
+    font-size: 14px;
+  }
+
+  .toast.leaving { animation: toastOut 0.3s ease forwards; }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes toastOut {
+    to { opacity: 0; transform: translateX(40px); }
+  }
+
+  /* Status badge */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .status-badge.idle { background: var(--accent-dim); color: var(--accent); }
+  .status-badge.scanning { background: rgba(251,191,36,0.12); color: var(--warning); }
+  .status-badge.valid { background: rgba(74,222,128,0.12); color: var(--success); }
+  .status-badge.invalid { background: rgba(248,113,113,0.12); color: var(--error); }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .status-badge.scanning .pulse-dot { animation: pulse 1s ease-in-out infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  /* History items */
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .history-item:hover { border-color: var(--accent); background: var(--card); }
+
+  .history-thumb {
+    width: 48px;
+    height: 36px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+  }
+
+  /* Progress ring */
+  .progress-ring {
+    transform: rotate(-90deg);
+  }
+
+  .progress-ring-circle {
+    transition: stroke-dashoffset 0.8s ease;
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(8px);
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+  .modal-content {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+  }
+
+  .modal-overlay.active .modal-content { transform: scale(1); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .main-grid { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="glow-orb glow-orb-1"></div>
+<div class="glow-orb glow-orb-2"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Preview Modal -->
+<div class="modal-overlay" id="previewModal">
+  <div class="modal-content">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-xl font-bold" style="font-family:'Space Grotesk'">Document Preview</h3>
+      <button onclick="closeModal()" class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/10 transition" aria-label="Close modal">
+        <i class="fas fa-times" style="color:var(--muted)"></i>
+      </button>
+    </div>
+    <img id="previewImage" src="" alt="Scanned document preview" class="w-full rounded-12" style="border-radius:12px;border:1px solid var(--border)">
+    <div id="previewDetails" class="mt-6 space-y-3"></div>
+  </div>
+</div>
+
+<div class="relative z-10 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="px-6 py-5 flex items-center justify-between border-b" style="border-color:var(--border);background:rgba(15,15,15,0.8);backdrop-filter:blur(16px)">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:var(--accent-dim)">
+        <i class="fas fa-file-shield" style="color:var(--accent);font-size:18px"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold leading-tight" style="font-family:'Space Grotesk'">DocScan</h1>
+        <p class="text-xs" style="color:var(--muted)">Intelligent Document Validation</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div id="statusBadge" class="status-badge idle">
+        <span class="pulse-dot"></span>
+        <span id="statusText">Ready</span>
+      </div>
+      <button id="historyToggle" onclick="toggleHistory()" class="w-9 h-9 rounded-lg flex items-center justify-center transition hover:bg-white/10" aria-label="View scan history">
+        <i class="fas fa-clock-rotate-left" style="color:var(--muted)"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6">
+    <div class="main-grid max-w-7xl mx-auto" style="display:grid;grid-template-columns:1.4fr 1fr;gap:24px;align-items:start">
+
+      <!-- Left: Camera Section -->
+      <div class="space-y-5">
+        <div class="camera-wrapper" id="cameraWrapper">
+          <video id="cameraFeed" autoplay playsinline muted></video>
+          <canvas id="captureCanvas" style="display:none"></canvas>
+          <canvas id="processCanvas" style="display:none"></canvas>
+
+          <!-- Document guide overlay -->
+          <div class="doc-guide" id="docGuide">
+            <div class="corner tl"></div>
+            <div class="corner tr"></div>
+            <div class="corner bl"></div>
+            <div class="corner br"></div>
+          </div>
+
+          <!-- Scan line -->
+          <div class="scan-line" id="scanLine"></div>
+
+          <!-- Center status overlay -->
+          <div id="cameraOverlay" class="absolute inset-0 flex flex-col items-center justify-center" style="background:rgba(0,0,0,0.6);z-index:10">
+            <div class="w-20 h-20 rounded-full flex items-center justify-center mb-5" style="background:var(--accent-dim)">
+              <i class="fas fa-camera" style="color:var(--accent);font-size:28px"></i>
+            </div>
+            <p class="text-lg font-medium mb-2">Enable Camera Access</p>
+            <p class="text-sm mb-6" style="color:var(--muted);max-width:320px;text-align:center">
+              Grant camera permission to begin scanning and validating your documents in real-time.
+            </p>
+            <button onclick="startCamera()" class="px-8 py-3 rounded-xl font-medium text-sm transition hover:opacity-90" style="background:var(--accent);color:#0f0f0f">
+              <i class="fas fa-video mr-2"></i>Start Camera
+            </button>
+          </div>
+
+          <!-- Live metrics overlay -->
+          <div id="liveMetrics" class="absolute top-3 left-3 px-3 py-2 rounded-lg text-xs space-y-1" style="background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);display:none;z-index:6">
+            <div class="flex items-center gap-2">
+              <span style="color:var(--muted)">Sharpness</span>
+              <span id="liveSharpness" style="color:var(--fg)">--</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span style="color:var(--muted)">Brightness</span>
+              <span id="liveBrightness" style="color:var(--fg)">--</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span style="color:var(--muted)">Coverage</span>
+              <span id="liveCoverage" style="color:var(--fg)">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex items-center justify-center gap-6">
+          <button id="flipBtn" onclick="flipCamera()" disabled class="w-12 h-12 rounded-full flex items-center justify-center transition hover:bg-white/10" style="border:1px solid var(--border)" aria-label="Flip camera">
+            <i class="fas fa-rotate" style="color:var(--muted)"></i>
+          </button>
+
+          <button id="captureBtn" class="capture-btn" onclick="captureDocument()" disabled aria-label="Capture document"></button>
+
+          <button id="switchModeBtn" onclick="toggleValidationMode()" disabled class="w-12 h-12 rounded-full flex items-center justify-center transition hover:bg-white/10" style="border:1px solid var(--border)" aria-label="Switch validation mode">
+            <i class="fas fa-sliders" style="color:var(--muted)"></i>
+          </button>
+        </div>
+
+        <p id="instructionText" class="text-center text-sm" style="color:var(--muted)">
+          Position your document within the guide frame and press capture
+        </p>
+
+        <!-- Validation Mode Selector -->
+        <div id="modeSelector" class="flex gap-2 p-1.5 rounded-xl" style="background:var(--bg-elevated);border:1px solid var(--border);display:none">
+          <button onclick="setMode('id')" class="mode-btn flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition" data-mode="id">
+            <i class="fas fa-id-card mr-2"></i>ID Card
+          </button>
+          <button onclick="setMode('document')" class="mode-btn flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition" data-mode="document">
+            <i class="fas fa-file-lines mr-2"></i>Document
+          </button>
+          <button onclick="setMode('receipt')" class="mode-btn flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition" data-mode="receipt">
+            <i class="fas fa-receipt mr-2"></i>Receipt
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Validation Results -->
+      <div class="space-y-5">
+
+        <!-- Overall Score -->
+        <div id="scoreSection" class="p-6 rounded-2xl" style="background:var(--card);border:1px solid var(--border)">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold" style="font-family:'Space Grotesk'">Validation Score</h2>
+            <span id="scoreLabel" class="text-sm font-medium" style="color:var(--muted)">Awaiting scan</span>
+          </div>
+          <div class="flex items-center gap-6">
+            <div class="relative flex-shrink-0">
+              <svg class="progress-ring" width="100" height="100">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border)" stroke-width="6"/>
+                <circle id="scoreRing" class="progress-ring-circle" cx="50" cy="50" r="42" fill="none" stroke="var(--muted)" stroke-width="6" stroke-linecap="round" stroke-dasharray="263.89" stroke-dashoffset="263.89"/>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span id="scoreValue" class="text-2xl font-black" style="font-family:'Space Grotesk'">--</span>
+              </div>
+            </div>
+            <div class="flex-1">
+              <p id="scoreDescription" class="text-sm leading-relaxed" style="color:var(--muted)">
+                Capture a document to run the validation pipeline. The system checks sharpness, lighting, alignment, and content quality.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Check Results -->
+        <div id="checksContainer" class="space-y-3">
+          <h2 class="text-base font-bold px-1" style="font-family:'Space Grotesk'">Quality Checks</h2>
+
+          <div class="check-card" id="check-sharpness">
+            <div class="check-icon" id="icon-sharpness"><i class="fas fa-eye"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium">Sharpness</span>
+                <span class="text-xs" style="color:var(--muted)" id="val-sharpness">--</span>
+              </div>
+              <p class="text-xs mt-0.5" style="color:var(--muted)" id="desc-sharpness">Measures edge clarity and focus accuracy</p>
+              <div class="check-bar"><div class="check-bar-fill" id="bar-sharpness"></div></div>
+            </div>
+          </div>
+
+          <div class="check-card" id="check-brightness">
+            <div class="check-icon" id="icon-brightness"><i class="fas fa-sun"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium">Brightness</span>
+                <span class="text-xs" style="color:var(--muted)" id="val-brightness">--</span>
+              </div>
+              <p class="text-xs mt-0.5" style="color:var(--muted)" id="desc-brightness">Evaluates overall illumination level</p>
+              <div class="check-bar"><div class="check-bar-fill" id="bar-brightness"></div></div>
+            </div>
+          </div>
+
+          <div class="check-card" id="check-contrast">
+            <div class="check-icon" id="icon-contrast"><i class="fas fa-circle-half-stroke"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium">Contrast</span>
+                <span class="text-xs" style="color:var(--muted)" id="val-contrast">--</span>
+              </div>
+              <p class="text-xs mt-0.5" style="color:var(--muted)" id="desc-contrast">Checks text-to-background differentiation</p>
+              <div class="check-bar"><div class="check-bar-fill" id="bar-contrast"></div></div>
+            </div>
+          </div>
+
+          <div class="check-card" id="check-coverage">
+            <div class="check-icon" id="icon-coverage"><i class="fas fa-expand"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium">Document Coverage</span>
+                <span class="text-xs" style="color:var(--muted)" id="val-coverage">--</span>
+              </div>
+              <p class="text-xs mt-0.5" style="color:var(--muted)" id="desc-coverage">Measures how much of the frame the document fills</p>
+              <div class="check-bar"><div class="check-bar-fill" id="bar-coverage"></div></div>
+            </div>
+          </div>
+
+          <div class="check-card" id="check-glare">
+            <div class="check-icon" id="icon-glare"><i class="fas fa-lightbulb"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium">Glare Detection</span>
+                <span class="text-xs" style="color:var(--muted)" id="val-glare">--</span>
+              </div>
+              <p class="text-xs mt-0.5" style="color:var(--muted)" id="desc-glare">Identifies overexposed hotspots on the document</p>
+              <div class="check-bar"><div class="check-bar-fill" id="bar-glare"></div></div>
+            </div>
+          </div>
+
+          <div class="check-card" id="check-skew">
+            <div class="check-icon" id="icon-skew"><i class="fas fa-arrows-rotate"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium">Alignment</span>
+                <span class="text-xs" style="color:var(--muted)" id="val-skew">--</span>
+              </div>
+              <p class="text-xs mt-0.5" style="color:var(--muted)" id="desc-skew">Detects rotation and skew of the document</p>
+              <div class="check-bar"><div class="check-bar-fill" id="bar-skew"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Captured Preview -->
+        <div id="capturedPreview" class="rounded-2xl overflow-hidden" style="background:var(--card);border:1px solid var(--border);display:none">
+          <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid var(--border)">
+            <h3 class="text-sm font-bold" style="font-family:'Space Grotesk'">Captured Image</h3>
+            <button onclick="viewFullPreview()" class="text-xs px-3 py-1.5 rounded-lg transition hover:bg-white/10" style="color:var(--accent)">
+              <i class="fas fa-expand mr-1"></i>View
+            </button>
+          </div>
+          <img id="capturedImage" src="" alt="Captured document" class="w-full" style="max-height:200px;object-fit:cover">
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- History Sidebar -->
+  <aside id="historySidebar" class="fixed top-0 right-0 h-full w-80 z-50 transform translate-x-full transition-transform duration-300" style="background:var(--bg-elevated);border-left:1px solid var(--border)">
+    <div class="p-5 flex items-center justify-between" style="border-bottom:1px solid var(--border)">
+      <h3 class="font-bold" style="font-family:'Space Grotesk'">Scan History</h3>
+      <button onclick="toggleHistory()" class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition" aria-label="Close history">
+        <i class="fas fa-times" style="color:var(--muted)"></i>
+      </button>
+    </div>
+    <div id="historyList" class="p-4 space-y-3 overflow-y-auto" style="max-height:calc(100vh - 70px)">
+      <div class="text-center py-12" style="color:var(--muted)">
+        <i class="fas fa-inbox text-3xl mb-3 block" style="opacity:0.3"></i>
+        <p class="text-sm">No scans yet</p>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+  // ===== Application State =====
+  const state = {
+    cameraActive: false,
+    stream: null,
+    facingMode: 'environment',
+    validating: false,
+    mode: 'document', // id, document, receipt
+    history: [],
+    lastCaptureDataUrl: null,
+    liveAnalysisInterval: null,
+    animationFrameId: null
+  };
+
+  // ===== DOM References =====
+  const $ = id => document.getElementById(id);
+  const video = $('cameraFeed');
+  const captureCanvas = $('captureCanvas');
+  const processCanvas = $('processCanvas');
+  const captureCtx = captureCanvas.getContext('2d', { willReadFrequently: true });
+  const processCtx = processCanvas.getContext('2d', { willReadFrequently: true });
+
+  // ===== Toast System =====
+  function showToast(message, type = 'info') {
+    const container = $('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+
+    const iconMap = {
+      info: 'fa-circle-info',
+      success: 'fa-circle-check',
+      error: 'fa-circle-xmark',
+      warning: 'fa-triangle-exclamation'
+    };
+    const colorMap = {
+      info: 'var(--accent)',
+      success: 'var(--success)',
+      error: 'var(--error)',
+      warning: 'var(--warning)'
+    };
+
+    toast.innerHTML = `
+      <i class="fas ${iconMap[type]}" style="color:${colorMap[type]};font-size:18px"></i>
+      <span>${message}</span>
+    `;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.classList.add('leaving');
+      setTimeout(() => toast.remove(), 300);
+    }, 3500);
+  }
+
+  // ===== Camera Management =====
+  async function startCamera() {
+    try {
+      const constraints = {
+        video: {
+          facingMode: state.facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 960 }
+        }
+      };
+
+      if (state.stream) {
+        state.stream.getTracks().forEach(t => t.stop());
+      }
+
+      state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = state.stream;
+
+      video.onloadedmetadata = () => {
+        captureCanvas.width = video.videoWidth;
+        captureCanvas.height = video.videoHeight;
+        processCanvas.width = 320; // Downsampled for analysis
+        processCanvas.height = 240;
+        state.cameraActive = true;
+
+        $('cameraOverlay').style.display = 'none';
+        $('captureBtn').disabled = false;
+        $('flipBtn').disabled = false;
+        $('switchModeBtn').disabled = false;
+        $('liveMetrics').style.display = 'block';
+        $('modeSelector').style.display = 'flex';
+
+        setMode(state.mode);
+        startLiveAnalysis();
+        showToast('Camera activated successfully', 'success');
+      };
+    } catch (err) {
+      console.error('Camera error:', err);
+      showToast('Unable to access camera. Please check permissions.', 'error');
+    }
+  }
+
+  async function flipCamera() {
+    state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
+    await startCamera();
+    showToast(`Switched to ${state.facingMode === 'environment' ? 'rear' : 'front'} camera`, 'info');
+  }
+
+  // ===== Validation Mode =====
+  function toggleValidationMode() {
+    const selector = $('modeSelector');
+    selector.style.display = selector.style.display === 'none' ? 'flex' : 'none';
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      const isActive = btn.dataset.mode === mode;
+      btn.style.background = isActive ? 'var(--accent)' : 'transparent';
+      btn.style.color = isActive ? '#0f0f0f' : 'var(--muted)';
+    });
+  }
+
+  // ===== Live Analysis (lightweight, runs continuously) =====
+  function startLiveAnalysis() {
+    if (state.liveAnalysisInterval) clearInterval(state.liveAnalysisInterval);
+
+    state.liveAnalysisInterval = setInterval(() => {
+      if (!state.cameraActive || state.validating) return;
+
+      processCtx.drawImage(video, 0, 0, 320, 240);
+      const imageData = processCtx.getImageData(0, 0, 320, 240);
+      const data = imageData.data;
+
+      // Quick sharpness estimate (variance of Laplacian approximation)
+      const sharpness = quickSharpness(data, 320, 240);
+      // Quick brightness
+      const brightness = quickBrightness(data);
+      // Quick coverage (edge density in guide region)
+      const coverage = quickCoverage(data, 320, 240);
+
+      $('liveSharpness').textContent = sharpness.toFixed(0);
+      $('liveSharpness').style.color = sharpness > 30 ? 'var(--success)' : sharpness > 15 ? 'var(--warning)' : 'var(--error)';
+
+      $('liveBrightness').textContent = brightness.toFixed(0);
+      $('liveBrightness').style.color = brightness > 80 && brightness < 220 ? 'var(--success)' : 'var(--warning)';
+
+      $('liveCoverage').textContent = coverage.toFixed(0) + '%';
+      $('liveCoverage').style.color = coverage > 60 ? 'var(--success)' : coverage > 40 ? 'var(--warning)' : 'var(--error)';
+
+      // Update guide color based on overall quality
+      const guide = $('docGuide');
+      const wrapper = $('cameraWrapper');
+      if (sharpness > 30 && coverage > 60 && brightness > 80 && brightness < 220) {
+        guide.classList.add('aligned');
+        wrapper.classList.add('detecting');
+        wrapper.classList.remove('valid-capture');
+      } else {
+        guide.classList.remove('aligned');
+        wrapper.classList.remove('detecting', 'valid-capture');
+      }
+    }, 300);
+  }
+
+  function quickSharpness(data, w, h) {
+    let sum = 0, count = 0;
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const idx = (y * w + x) * 4;
+        // Simple Laplacian on grayscale
+        const center = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+        const top = data[((y - 1) * w + x) * 4] * 0.299 + data[((y - 1) * w + x) * 4 + 1] * 0.587 + data[((y - 1) * w + x) * 4 + 2] * 0.114;
+        const bottom = data[((y + 1) * w + x) * 4] * 0.299 + data[((y + 1) * w + x) * 4 + 1] * 0.587 + data[((y + 1) * w + x) * 4 + 2] * 0.114;
+        const left = data[(y * w + x - 1) * 4] * 0.299 + data[(y * w + x - 1) * 4 + 1] * 0.587 + data[(y * w + x - 1) * 4 + 2] * 0.114;
+        const right = data[(y * w + x + 1) * 4] * 0.299 + data[(y * w + x + 1) * 4 + 1] * 0.587 + data[(y * w + x + 1) * 4 + 2] * 0.114;
+        const lap = center - (top + bottom + left + right) / 4;
+        sum += lap * lap;
+        count++;
+      }
+    }
+    return count > 0 ? sum / count : 0;
+  }
+
+  function quickBrightness(data) {
+    let sum = 0;
+    const len = data.length / 4;
+    for (let i = 0; i < data.length; i += 16) { // Sample every 4th pixel for speed
+      sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    }
+    return sum / (len / 4);
+  }
+
+  function quickCoverage(data, w, h) {
+    // Estimate document coverage by checking edge density in the center region
+    const x1 = Math.floor(w * 0.1), x2 = Math.floor(w * 0.9);
+    const y1 = Math.floor(h * 0.1), y2 = Math.floor(h * 0.9);
+    let edgeCount = 0, totalPixels = 0;
+
+    for (let y = y1 + 1; y < y2 - 1; y += 2) {
+      for (let x = x1 + 1; x < x2 - 1; x += 2) {
+        const idx = (y * w + x) * 4;
+        const gray = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+        const grayRight = data[(y * w + x + 1) * 4] * 0.299 + data[(y * w + x + 1) * 4 + 1] * 0.587 + data[(y * w + x + 1) * 4 + 2] * 0.114;
+        if (Math.abs(gray - grayRight) > 15) edgeCount++;
+        totalPixels++;
+      }
+    }
+    // More edges = more content = better coverage estimate
+    const edgeDensity = edgeCount / Math.max(1, totalPixels);
+    return Math.min(100, edgeDensity * 400);
+  }
+
+  // ===== Capture & Full Validation =====
+  async function captureDocument() {
+    if (!state.cameraActive || state.validating) return;
+    state.validating = true;
+
+    // Visual feedback: scan line
+    const scanLine = $('scanLine');
+    scanLine.classList.remove('active');
+    void scanLine.offsetWidth; // Trigger reflow
+    scanLine.classList.add('active');
+
+    // Update status
+    setStatus('scanning', 'Scanning...');
+    $('captureBtn').disabled = true;
+    $('instructionText').textContent = 'Analyzing document quality...';
+
+    // Capture frame
+    captureCtx.drawImage(video, 0, 0);
+    const fullDataUrl = captureCanvas.toDataURL('image/jpeg', 0.92);
+    state.lastCaptureDataUrl = fullDataUrl;
+
+    // Show captured preview
+    $('capturedImage').src = fullDataUrl;
+    $('capturedPreview').style.display = 'block';
+
+    // Run validation pipeline with a small delay for visual effect
+    await delay(800);
+
+    const results = runFullValidation();
+
+    // Display results with staggered animation
+    await displayResults(results);
+
+    // Calculate overall score
+    const score = calculateScore(results);
+    displayScore(score, results);
+
+    // Add to history
+    addToHistory(fullDataUrl, score, results);
+
+    // Final status
+    const isValid = score >= 70;
+    setStatus(isValid ? 'valid' : 'invalid', isValid ? 'Document Valid' : 'Needs Improvement');
+    $('cameraWrapper').classList.toggle('valid-capture', isValid);
+
+    if (isValid) {
+      showToast(`Document validated successfully — Score: ${score}%`, 'success');
+      $('instructionText').textContent = 'Great capture! You can retake or scan another document.';
+    } else {
+      showToast(`Validation issues found — Score: ${score}%. Please retake.`, 'warning');
+      $('instructionText').textContent = 'Some checks failed. Adjust lighting or position and try again.';
+    }
+
+    state.validating = false;
+    $('captureBtn').disabled = false;
+  }
+
+  // ===== Full Validation Pipeline =====
+  function runFullValidation() {
+    // Use full resolution for validation
+    const w = captureCanvas.width;
+    const h = captureCanvas.height;
+    const imageData = captureCtx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+
+    // Also create a downsampled version for heavier analysis
+    const dw = 640, dh = Math.round(640 * h / w);
+    processCanvas.width = dw;
+    processCanvas.height = dh;
+    processCtx.drawImage(captureCanvas, 0, 0, dw, dh);
+    const smallData = processCtx.getImageData(0, 0, dw, dh).data;
+
+    return {
+      sharpness: validateSharpness(smallData, dw, dh),
+      brightness: validateBrightness(data, w, h),
+      contrast: validateContrast(data, w, h),
+      coverage: validateCoverage(smallData, dw, dh),
+      glare: validateGlare(data, w, h),
+      skew: validateSkew(smallData, dw, dh)
+    };
+  }
+
+  // --- Sharpness: Variance of Laplacian ---
+  function validateSharpness(data, w, h) {
+    let sum = 0, sumSq = 0, count = 0;
+    const lapValues = [];
+
+    for (let y = 2; y < h - 2; y += 1) {
+      for (let x = 2; x < w - 2; x += 1) {
+        const idx = (y * w + x) * 4;
+        const gray = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+        const neighbors = [
+          data[((y-1)*w+x)*4]*0.299 + data[((y-1)*w+x)*4+1]*0.587 + data[((y-1)*w+x)*4+2]*0.114,
+          data[((y+1)*w+x)*4]*0.299 + data[((y+1)*w+x)*4+1]*0.587 + data[((y+1)*w+x)*4+2]*0.114,
+          data[(y*w+x-1)*4]*0.299 + data[(y*w+x-1)*4+1]*0.587 + data[(y*w+x-1)*4+2]*0.114,
+          data[(y*w+x+1)*4]*0.299 + data[(y*w+x+1)*4+1]*0.587 + data[(y*w+x+1)*4+2]*0.114
+        ];
+        const lap = gray * 4 - neighbors.reduce((a, b) => a + b, 0);
+        lapValues.push(lap);
+        sum += lap;
+        sumSq += lap * lap;
+        count++;
+      }
+    }
+
+    const mean = sum / Math.max(1, count);
+    const variance = sumSq / Math.max(1, count) - mean * mean;
+    const score = Math.min(100, Math.max(0, variance / 8)); // Scale to 0-100
+
+    let status = 'fail';
+    if (score > 55) status = 'pass';
+    else if (score > 30) status = 'warn';
+
+    return {
+      value: Math.round(score),
+      raw: variance.toFixed(1),
+      status,
+      description: status === 'pass' ? 'Document is well-focused with clear edges' :
+                   status === 'warn' ? 'Slightly soft, consider holding steadier' :
+                   'Image is blurry — hold the camera steady and ensure focus'
+    };
+  }
+
+  // --- Brightness: Mean luminance ---
+  function validateBrightness(data, w, h) {
+    let sum = 0;
+    const step = 4; // Sample every 4th pixel
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4 * step) {
+      sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+      count++;
+    }
+    const mean = sum / Math.max(1, count);
+
+    // Ideal range: 100-200
+    let score;
+    if (mean >= 100 && mean <= 200) {
+      score = 100 - Math.abs(mean - 150) * 0.5;
+    } else if (mean < 100) {
+      score = Math.max(0, mean / 100 * 70);
+    } else {
+      score = Math.max(0, (255 - mean) / 55 * 70);
+    }
+
+    let status = 'fail';
+    if (score > 65) status = 'pass';
+    else if (score > 40) status = 'warn';
+
+    return {
+      value: Math.round(score),
+      raw: mean.toFixed(0) + ' / 255',
+      status,
+      description: status === 'pass' ? 'Lighting is well-balanced across the document' :
+                   status === 'warn' ? 'Lighting could be improved — avoid direct light sources' :
+                   mean < 100 ? 'Document is too dark — increase lighting' : 'Document is overexposed — reduce light intensity'
+    };
+  }
+
+  // --- Contrast: Standard deviation of luminance ---
+  function validateContrast(data, w, h) {
+    let sum = 0, sumSq = 0, count = 0;
+    const step = 4;
+    for (let i = 0; i < data.length; i += 4 * step) {
+      const lum = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+      sum += lum;
+      sumSq += lum * lum;
+      count++;
+    }
+    const mean = sum / Math.max(1, count);
+    const stdDev = Math.sqrt(sumSq / Math.max(1, count) - mean * mean);
+
+    // Good contrast: stdDev between 40-80
+    let score;
+    if (stdDev >= 40 && stdDev <= 80) {
+      score = 90 + (stdDev > 55 ? 10 - (stdDev - 55) * 0.3 : stdDev / 55 * 10);
+    } else if (stdDev < 40) {
+      score = Math.max(0, stdDev / 40 * 75);
+    } else {
+      score = Math.max(0, (120 - stdDev) / 40 * 80);
+    }
+
+    let status = 'fail';
+    if (score > 65) status = 'pass';
+    else if (score > 40) status = 'warn';
+
+    return {
+      value: Math.round(Math.min(100, score)),
+      raw: stdDev.toFixed(1),
+      status,
+      description: status === 'pass' ? 'Good text-to-background differentiation' :
+                   status === 'warn' ? 'Contrast is adequate but could be sharper' :
+                   'Low contrast — ensure even lighting and avoid washed-out areas'
+    };
+  }
+
+  // --- Coverage: Document fills the frame ---
+  function validateCoverage(data, w, h) {
+    // Convert to grayscale and threshold to find document region
+    const guideX1 = Math.floor(w * 0.1), guideX2 = Math.floor(w * 0.9);
+    const guideY1 = Math.floor(h * 0.1), guideY2 = Math.floor(h * 0.9);
+
+    // Detect document edges using gradient magnitude
+    let strongEdgeCount = 0;
+    let totalInGuide = 0;
+
+    for (let y = guideY1 + 1; y < guideY2 - 1; y++) {
+      for (let x = guideX1 + 1; x < guideX2 - 1; x++) {
+        const idx = (y * w + x) * 4;
+        const gray = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+        const grayRight = data[(y * w + x + 2) * 4] * 0.299 + data[(y * w + x + 2) * 4 + 1] * 0.587 + data[(y * w + x + 2) * 4 + 2] * 0.114;
+        const grayDown = data[((y + 2) * w + x) * 4] * 0.299 + data[((y + 2) * w + x) * 4 + 1] * 0.587 + data[((y + 2) * w + x) * 4 + 2] * 0.114;
+
+        const gx = Math.abs(gray - grayRight);
+        const gy = Math.abs(gray - grayDown);
+        const mag = Math.sqrt(gx * gx + gy * gy);
+
+        if (mag > 20) strongEdgeCount++;
+        totalInGuide++;
+      }
+    }
+
+    const edgeDensity = strongEdgeCount / Math.max(1, totalInGuide);
+
+    // Mode-specific thresholds
+    const thresholds = {
+      id: { low: 0.05, high: 0.25 },
+      document: { low: 0.08, high: 0.35 },
+      receipt: { low: 0.06, high: 0.30 }
+    };
+    const t = thresholds[state.mode] || thresholds.document;
+
+    let score;
+    if (edgeDensity >= t.low && edgeDensity <= t.high) {
+      score = 80 + (edgeDensity > (t.low + t.high) / 2 ? 20 - (edgeDensity - (t.low + t.high) / 2) / (t.high - t.low) * 20 : edgeDensity / ((t.low + t.high) / 2) * 20);
+    } else if (edgeDensity < t.low) {
+      score = Math.max(5, edgeDensity / t.low * 65);
+    } else {
+      score = Math.max(20, 100 - (edgeDensity - t.high) / 0.2 * 60);
+    }
+
+    let status = 'fail';
+    if (score > 60) status = 'pass';
+    else if (score > 35) status = 'warn';
+
+    return {
+      value: Math.round(Math.min(100, score)),
+      raw: (edgeDensity * 100).toFixed(1) + '%',
+      status,
+      description: status === 'pass' ? `Document well-positioned for ${state.mode} scanning` :
+                   status === 'warn' ? 'Document could fill more of the frame' :
+                   'Document not detected — ensure it is within the guide frame'
+    };
+  }
+
+  // --- Glare: Overexposed regions ---
+  function validateGlare(data, w, h) {
+    let glarePixels = 0, totalPixels = 0;
+    const step = 2;
+
+    // Focus on center region where document likely is
+    const x1 = Math.floor(w * 0.15), x2 = Math.floor(w * 0.85);
+    const y1 = Math.floor(h * 0.15), y2 = Math.floor(h * 0.85);
+
+    for (let y = y1; y < y2; y += step) {
+      for (let x = x1; x < x2; x += step) {
+        const idx = (y * w + x) * 4;
+        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+        totalPixels++;
+
+        // Glare: very bright with low saturation
+        if (r > 230 && g > 230 && b > 230) {
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const sat = max > 0 ? (max - min) / max : 0;
+          if (sat < 0.15) glarePixels++;
+        }
+      }
+    }
+
+    const glareRatio = glarePixels / Math.max(1, totalPixels);
+    // Less than 2% glare is good, >8% is bad
+    let score = Math.max(0, 100 - glareRatio * 1000);
+
+    let status = 'fail';
+    if (score > 70) status = 'pass';
+    else if (score > 45) status = 'warn';
+
+    return {
+      value: Math.round(score),
+      raw: (glareRatio * 100).toFixed(1) + '%',
+      status,
+      description: status === 'pass' ? 'No significant glare detected' :
+                   status === 'warn' ? 'Minor glare spots found — adjust angle slightly' :
+                   'Strong glare detected — reposition to avoid direct light reflection'
+    };
+  }
+
+  // --- Skew: Horizontal edge analysis for rotation ---
+  function validateSkew(data, w, h) {
+    // Project horizontal gradients to detect dominant angle
+    const angles = [];
+    const step = 3;
+    const sampleRows = 20;
+    const rowStep = Math.floor(h / (sampleRows + 1));
+
+    for (let r = 1; r <= sampleRows; r++) {
+      const y = r * rowStep;
+      if (y >= h - 2) continue;
+
+      let leftEdge = -1, rightEdge = -1;
+
+      // Find left edge in this row
+      for (let x = 10; x < w - 10; x += step) {
+        const idx = (y * w + x) * 4;
+        const gray = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+        const grayNext = data[(y * w + x + step) * 4] * 0.299 + data[(y * w + x + step) * 4 + 1] * 0.587 + data[(y * w + x + step) * 4 + 2] * 0.114;
+        if (Math.abs(gray - grayNext) > 25) {
+          leftEdge = x;
+          break;
+        }
+      }
+
+      // Find right edge
+      for (let x = w - 10; x > 10; x -= step) {
+        const idx = (y * w + x) * 4;
+        const gray = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+        const grayPrev = data[(y * w + x - step) * 4] * 0.299 + data[(y * w + x - step) * 4 + 1] * 0.587 + data[(y * w + x - step) * 4 + 2] * 0.114;
+        if (Math.abs(gray - grayPrev) > 25) {
+          rightEdge = x;
+          break;
+        }
+      }
+
+      if (leftEdge > 0 && rightEdge > leftEdge) {
+        angles.push({ y, left: leftEdge, right: rightEdge, center: (leftEdge + rightEdge) / 2 });
+      }
+    }
+
+    if (angles.length < 3) {
+      return {
+        value: 50,
+        raw: 'N/A',
+        status: 'warn',
+        description: 'Could not determine alignment — edges unclear'
+      };
+    }
+
+    // Calculate skew from left edge positions
+    const firstHalf = angles.slice(0, Math.floor(angles.length / 2));
+    const secondHalf = angles.slice(Math.floor(angles.length / 2));
+
+    const avgLeftTop = firstHalf.reduce((s, a) => s + a.left, 0) / firstHalf.length;
+    const avgLeftBot = secondHalf.reduce((s, a) => s + a.left, 0) / secondHalf.length;
+
+    const heightDiff = Math.abs(avgLeftTop - avgLeftBot);
+    const verticalSpan = angles[angles.length - 1].y - angles[0].y;
+    const skewAngle = Math.atan2(heightDiff, Math.max(1, verticalSpan)) * (180 / Math.PI);
+
+    // Less than 3 degrees is excellent, >10 is bad
+    let score = Math.max(0, 100 - skewAngle * 10);
+
+    let status = 'fail';
+    if (score > 65) status = 'pass';
+    else if (score > 40) status = 'warn';
+
+    return {
+      value: Math.round(score),
+      raw: skewAngle.toFixed(1) + '°',
+      status,
+      description: status === 'pass' ? 'Document is well-aligned with minimal rotation' :
+                   status === 'warn' ? `Slight ${skewAngle.toFixed(1)}° rotation detected` :
+                   `${skewAngle.toFixed(1)}° skew — straighten the document before capturing`
+    };
+  }
+
+  // ===== Display Results =====
+  async function displayResults(results) {
+    const checks = ['sharpness', 'brightness', 'contrast', 'coverage', 'glare', 'skew'];
+
+    for (let i = 0; i < checks.length; i++) {
+      const key = checks[i];
+      const r = results[key];
+      const card = $(`check-${key}`);
+      const icon = $(`icon-${key}`);
+      const val = $(`val-${key}`);
+      const desc = $(`desc-${key}`);
+      const bar = $(`bar-${key}`);
+
+      await delay(150);
+
+      icon.className = `check-icon ${r.status}`;
+      val.textContent = `${r.value}%`;
+      val.style.color = r.status === 'pass' ? 'var(--success)' : r.status === 'warn' ? 'var(--warning)' : 'var(--error)';
+      desc.textContent = r.description;
+
+      bar.className = `check-bar-fill ${r.status}`;
+      requestAnimationFrame(() => { bar.style.width = r.value + '%'; });
+
+      card.classList.add('visible');
+    }
+  }
+
+  function calculateScore(results) {
+    const weights = {
+      sharpness: 0.25,
+      brightness: 0.15,
+      contrast: 0.15,
+      coverage: 0.2,
+      glare: 0.15,
+      skew: 0.1
+    };
+
+    let weightedSum = 0;
+    for (const [key, weight] of Object.entries(weights)) {
+      weightedSum += results[key].value * weight;
+    }
+    return Math.round(weightedSum);
+  }
+
+  function displayScore(score, results) {
+    const ring = $('scoreRing');
+    const circumference = 2 * Math.PI * 42; // ~263.89
+    const offset = circumference - (score / 100) * circumference;
+
+    let color = 'var(--error)';
+    let label = 'Poor Quality';
+    let desc = 'The document has significant quality issues. Please retake with better lighting, focus, and alignment.';
+
+    if (score >= 85) {
+      color = 'var(--success)';
+      label = 'Excellent';
+      desc = 'Outstanding document quality. All validation checks passed with high scores. Ready for processing.';
+    } else if (score >= 70) {
+      color = 'var(--success)';
+      label = 'Valid';
+      desc = 'Document meets quality standards. Minor improvements possible but acceptable for processing.';
+    } else if (score >= 50) {
+      color = 'var(--warning)';
+      label = 'Fair';
+      desc = 'Document has some quality concerns. Consider retaking with adjustments to lighting and position.';
+    } else if (score >= 30) {
+      color = 'var(--error)';
+      label = 'Poor';
+      desc = 'Multiple quality checks failed. Improve focus, lighting, and document positioning.';
+    }
+
+    ring.style.stroke = color;
+    ring.style.strokeDashoffset = offset;
+    $('scoreValue').textContent = score;
+    $('scoreValue').style.color = color;
+    $('scoreLabel').textContent = label;
+    $('scoreLabel').style.color = color;
+    $('scoreDescription').textContent = desc;
+  }
+
+  // ===== Status Badge =====
+  function setStatus(type, text) {
+    const badge = $('statusBadge');
+    badge.className = `status-badge ${type}`;
+    $('statusText').textContent = text;
+  }
+
+  // ===== History =====
+  function addToHistory(dataUrl, score, results) {
+    const entry = {
+      id: Date.now(),
+      dataUrl,
+      score,
+      mode: state.mode,
+      time: new Date().toLocaleTimeString(),
+      results: { ...results }
+    };
+    state.history.unshift(entry);
+    if (state.history.length > 20) state.history.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const list = $('historyList');
+    if (state.history.length === 0) {
+      list.innerHTML = `
+        <div class="text-center py-12" style="color:var(--muted)">
+          <i class="fas fa-inbox text-3xl mb-3 block" style="opacity:0.3"></i>
+          <p class="text-sm">No scans yet</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = state.history.map(entry => {
+      const scoreColor = entry.score >= 70 ? 'var(--success)' : entry.score >= 50 ? 'var(--warning)' : 'var(--error)';
+      const modeIcons = { id: 'fa-id-card', document: 'fa-file-lines', receipt: 'fa-receipt' };
+      return `
+        <div class="history-item" onclick="viewHistoryItem(${entry.id})">
+          <img src="${entry.dataUrl}" alt="Scan from ${entry.time}" class="history-thumb">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <i class="fas ${modeIcons[entry.mode] || 'fa-file'}" style="color:var(--muted);font-size:11px"></i>
+              <span class="text-sm font-medium capitalize">${entry.mode}</span>
+            </div>
+            <span class="text-xs" style="color:var(--muted)">${entry.time}</span>
+          </div>
+          <span class="text-sm font-bold" style="color:${scoreColor}">${entry.score}%</span>
+        </div>`;
+    }).join('');
+  }
+
+  function viewHistoryItem(id) {
+    const entry = state.history.find(e => e.id === id);
+    if (!entry) return;
+    state.lastCaptureDataUrl = entry.dataUrl;
+    $('previewImage').src = entry.dataUrl;
+
+    const details = $('previewDetails');
+    const checks = ['sharpness', 'brightness', 'contrast', 'coverage', 'glare', 'skew'];
+    details.innerHTML = `
+      <div class="flex items-center justify-between">
+        <span class="text-sm" style="color:var(--muted)">Mode</span>
+        <span class="text-sm font-medium capitalize">${entry.mode}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm" style="color:var(--muted)">Time</span>
+        <span class="text-sm font-medium">${entry.time}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm" style="color:var(--muted)">Overall Score</span>
+        <span class="text-sm font-bold" style="color:${entry.score >= 70 ? 'var(--success)' : entry.score >= 50 ? 'var(--warning)' : 'var(--error)'}">${entry.score}%</span>
+      </div>
+      <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+      ${checks.map(key => {
+        const r = entry.results[key];
+        const iconMap = { pass: 'fa-check', warn: 'fa-minus', fail: 'fa-xmark' };
+        const colorMap = { pass: 'var(--success)', warn: 'var(--warning)', fail: 'var(--error)' };
+        return `<div class="flex items-center justify-between">
+          <span class="text-xs capitalize" style="color:var(--muted)">${key}</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs" style="color:var(--muted)">${r.raw}</span>
+            <i class="fas ${iconMap[r.status]}" style="color:${colorMap[r.status]};font-size:12px"></i>
+          </div>
+        </div>`;
+      }).join('')}
+    `;
+
+    $('previewModal').classList.add('active');
+  }
+
+  function viewFullPreview() {
+    if (!state.lastCaptureDataUrl) return;
+    $('previewImage').src = state.lastCaptureDataUrl;
+    $('previewDetails').innerHTML = '<p class="text-sm" style="color:var(--muted)">Full resolution captured image</p>';
+    $('previewModal').classList.add('active');
+  }
+
+  function closeModal() {
+    $('previewModal').classList.remove('active');
+  }
+
+  function toggleHistory() {
+    const sidebar = $('historySidebar');
+    const isOpen = !sidebar.classList.contains('translate-x-full');
+    sidebar.classList.toggle('translate-x-full', isOpen);
+  }
+
+  // ===== Utility =====
+  function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Close modal on overlay click
+  $('previewModal').addEventListener('click', (e) => {
+    if (e.target === $('previewModal')) closeModal();
+  });
+
+  // Close modal on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      const sidebar = $('historySidebar');
+      if (!sidebar.classList.contains('translate-x-full')) toggleHistory();
+    }
+  });
+
+  // Initialize mode buttons
+  setMode('document');
+</script>
+</body>
+</html>

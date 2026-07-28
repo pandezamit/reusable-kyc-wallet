@@ -1,0 +1,17 @@
+module Audit.AuditTrail where
+
+import DA.Time
+
+template AuditTrail
+  with
+    auditProvider : Party
+    regulators : [Party]
+    eventType : Text
+    actorParty : Party
+    targetParty : Party
+    eventHash : Text
+    timestamp : Time
+    details : Text
+  where
+    signatory auditProvider
+    observer regulators

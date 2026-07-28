@@ -1,0 +1,18 @@
+module Consent.ConsentRecord where
+
+import KYC.Types
+import DA.Time
+
+template ConsentRecord
+  with
+    customer : Party
+    dataController : Party
+    consentId : Text
+    customerId : Text
+    purpose : ConsentPurpose
+    grantedTo : Party
+    grantedAt : Time
+    expiresAt : Time
+    revoked : Bool
+  where
+    signatory customer, dataController

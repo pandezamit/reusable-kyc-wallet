@@ -1,0 +1,25 @@
+module KYC.KycRecord where
+
+import KYC.Types
+import DA.Time
+
+template KycRecord
+  with
+    kycProvider : Party
+    customer : Party
+    customerId : Text
+    did : Text
+    status : KycStatus
+    verificationLevel : VerificationLevel
+    documentHashList : [Text]
+    issuedAt : Time
+    expiresAt : Time
+    credentialHash : Text
+    observers : [Party]
+  where
+    signatory kycProvider, customer
+    observer observers
+
+    choice ExpireKyc : ContractId KycRecord
+      controller kycProvider
+      do create this with status = Expired
