@@ -1,0 +1,32 @@
+module Daml.Init where
+
+import Daml.Script
+import Identity.DigitalIdentity
+import DA.Time
+
+-- | Initialization script to set up parties and an initial wallet on the sandbox
+setup : Script ()
+setup = do
+  -- 1. Allocate parties for the local Canton Sandbox
+  bank <- allocateParty "LloydsBank"          -- Acts as kycProvider / walletProvider
+  customer <- allocateParty "Alice_Customer"  -- The end-user
+  regulator <- allocateParty "FCA_Regulator"  -- The auditing regulator
+  partner <- allocateParty "Partner_Bank"     -- A 3rd party institution
+
+  -- 2. Create an initial Digital Identity Wallet for the customer
+  let walletArgs = DigitalIdentity with
+        walletProvider = bank
+        customer = customer
+        did = "did:lloyds:alice123"
+        walletId = "wallet-001"
+        kycRecordIds = []
+        activeCredentials = []
+        consentRecordIds = []
+        createdAt = getTime
+
+  -- Submit the create command to the ledger
+  walletCid <- submit bank (createCmd walletArgs)
+
+  -- Log output so the developer knows the setup succeeded
+  debug "Initialization complete. Parties allocated and initial wallet created."
+  pure ()
