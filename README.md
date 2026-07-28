@@ -31,13 +31,13 @@ import com.digitalasset.canton.version.ProtocolVersion
 import com.digitalasset.canton.admin.api.client.data.StaticSynchronizerParameters
 
 bootstrap.synchronizer(
->   synchronizerName = "my-synchronizer",
->   sequencers = sequencers.all,
->   mediators = mediators.all,
->   synchronizerOwners = sequencers.all,
->   synchronizerThreshold = PositiveInt.one,
->   staticSynchronizerParameters = StaticSynchronizerParameters.defaultsWithoutKMS(ProtocolVersion.latest),
-> )
+   synchronizerName = "my-synchronizer",
+   sequencers = sequencers.all,
+   mediators = mediators.all,
+   synchronizerOwners = sequencers.all,
+   synchronizerThreshold = PositiveInt.one,
+   staticSynchronizerParameters = StaticSynchronizerParameters.defaultsWithoutKMS(ProtocolVersion.latest),
+ )
 
 sequencers.local
 mediators.local
