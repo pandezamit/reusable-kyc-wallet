@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lloyds Bank | Digital Onboarding</title>
+    <style>
+        :root {
+            --lloyds-green: #006A4D;
+            --lloyds-dark-green: #014D38;
+            --lloyds-light-green: #E6F2EF;
+            --lloyds-black: #1C1C1C;
+            --lloyds-grey: #595959;
+            --lloyds-light-grey: #F2F2F2;
+            --lloyds-border: #D9D9D9;
+            --lloyds-white: #FFFFFF;
+            --lloyds-error: #D4211C;
+            --font-lloyds: 'Lloyds Jack', 'Arial', 'Helvetica', sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-lloyds);
+            margin: 0; padding: 0;
+            background-color: var(--lloyds-white);
+            color: var(--lloyds-black);
+            font-size: 16px; line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Navigation Bar */
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; border-bottom: 1px solid var(--lloyds-border); background-color: var(--lloyds-white); }
+        .logo { font-weight: 700; font-size: 24px; color: var(--lloyds-green); display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px; }
+        .logo span { color: var(--lloyds-black); font-weight: 400; }
+        .nav-links { display: flex; gap: 25px; align-items: center; }
+        .nav-links a { text-decoration: none; color: var(--lloyds-black); font-weight: 700; font-size: 15px; }
+        .nav-links a:hover { color: var(--lloyds-green); }
+        .btn-outline { border: 2px solid var(--lloyds-green); color: var(--lloyds-green); padding: 8px 20px; border-radius: 4px; font-weight: 700; text-decoration: none; font-size: 15px; background: white; cursor: pointer; transition: all 0.2s; }
+        .btn-outline:hover { background: var(--lloyds-light-green); }
+
+        /* Hero Section */
+        .hero { display: flex; max-width: 1200px; margin: 0 auto; padding: 40px; min-height: 400px; align-items: center; }
+        .hero-left { flex: 1; padding-right: 40px; }
+        .hero-left h1 { font-weight: 700; font-size: 42px; margin: 0 0 15px 0; color: var(--lloyds-green); line-height: 1.1; }
+        .hero-left p { font-size: 18px; margin-bottom: 30px; color: var(--lloyds-grey); max-width: 450px; }
+        .btn-primary { background-color: var(--lloyds-green); color: white; border: none; padding: 15px 30px; font-size: 16px; font-weight: 700; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; width: fit-content; transition: background 0.2s; }
+        .btn-primary:hover { background-color: var(--lloyds-dark-green); }
+        
+        .hero-right { flex: 1; position: relative; display: flex; justify-content: center; }
+        .hero-image-frame { width: 100%; max-width: 500px; height: 350px; background-color: var(--lloyds-light-grey); border-radius: 8px; overflow: hidden; background-image: url('https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'); background-size: cover; background-position: center; }
+        .badge-moneyfacts { position: absolute; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 140px; }
+        .badge-moneyfacts .stars { color: #FFD700; font-size: 20px; }
+        .badge-moneyfacts div { font-size: 12px; font-weight: 700; margin-top: 5px; line-height: 1.2; }
+
+        /* Main Onboarding Container */
+        .onboarding-section { padding: 40px 20px; background-color: var(--lloyds-white); display: flex; justify-content: center; }
+        .app-container { background: white; width: 100%; max-width: 680px; border: 1px solid var(--lloyds-border); border-radius: 8px; padding: 40px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h2 { font-weight: 700; font-size: 28px; color: var(--lloyds-green); margin-top: 0; }
+        p { color: var(--lloyds-grey); }
+        
+        /* UI Elements */
+        .lloyds-input-btn { background-color: var(--lloyds-green); color: white; border: none; padding: 16px 24px; font-size: 16px; font-weight: 700; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 20px; transition: background 0.2s; }
+        .lloyds-input-btn:hover { background-color: var(--lloyds-dark-green); }
+        .lloyds-input-btn:disabled { background-color: #A5C6BC; cursor: not-allowed; }
+
+        .lloyds-text-input { width: 100%; padding: 14px; border: 1px solid var(--lloyds-border); border-radius: 4px; font-family: var(--font-lloyds); font-size: 16px; color: var(--lloyds-black); margin-bottom: 15px; }
+        .lloyds-text-input:focus { outline: none; border-color: var(--lloyds-green); box-shadow: 0 0 0 2px var(--lloyds-light-green); }
+
+        .upload-box { border: 2px dashed var(--lloyds-border); padding: 40px; text-align: center; border-radius: 8px; margin: 15px 0; cursor: pointer; transition: all 0.2s; font-weight: 700; color: var(--lloyds-grey); min-height: 150px; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        .upload-box:hover { border-color: var(--lloyds-green); background: var(--lloyds-light-green); }
+        .upload-box img { max-width: 100%; max-height: 140px; border-radius: 4px; margin-bottom: 10px; }
+        .hidden { display: none !important; }
+        
+        .status-banner { padding: 15px; border-radius: 4px; margin-bottom: 20px; text-align: center; font-weight: 700; font-size: 16px; }
+        .error { background-color: #fdecea; color: var(--lloyds-error); border: 1px solid var(--lloyds-error); }
+        .success { background-color: var(--lloyds-light-green); color: var(--lloyds-green); border: 1px solid var(--lloyds-green); }
+        .info { background-color: #eef2f7; color: #005073; border: 1px solid #005073; }
+        
+        .step-indicator { font-size: 14px; color: var(--lloyds-grey); margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        label { display: block; margin-bottom: 8px; font-weight: 700; font-size: 16px; color: var(--lloyds-black); }
+
+        .switch-notice { margin-top: 40px; padding: 20px; background: var(--lloyds-light-grey); border-left: 4px solid var(--lloyds-green); font-size: 14px; color: var(--lloyds-grey); }
+
+        /* Document Selection Buttons */
+        .doc-selector { display: flex; gap: 15px; margin-bottom: 20px; }
+        .doc-btn { flex: 1; padding: 15px; border: 2px solid var(--lloyds-border); background: white; border-radius: 4px; cursor: pointer; font-weight: 700; color: var(--lloyds-grey); transition: all 0.2s; }
+        .doc-btn.active { border-color: var(--lloyds-green); background: var(--lloyds-light-green); color: var(--lloyds-green); }
+        .doc-btn:hover { border-color: var(--lloyds-green); }
+
+        /* Camera Modal Styling */
+        .camera-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+        .camera-modal.active { display: flex; }
+        .camera-container { background: black; border-radius: 8px; overflow: hidden; width: 90%; max-width: 500px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #camera-video { width: 100%; height: auto; display: block; transform: scaleX(1); }
+        
+        .camera-overlay { position: absolute; pointer-events: none; border: 2px solid rgba(255,255,255,0.7); border-radius: 8px; }
+        .overlay-passport { top: 15%; left: 10%; right: 10%; bottom: 15%; }
+        .overlay-dl { top: 25%; left: 15%; right: 15%; bottom: 25%; border-radius: 12px; }
+
+        .camera-controls { display: flex; justify-content: space-between; width: 90%; max-width: 500px; margin-top: 20px; }
+        .cam-btn { padding: 12px 24px; border: none; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: 16px; }
+        .cam-btn-capture { background: var(--lloyds-green); color: white; }
+        .cam-btn-close { background: white; color: var(--lloyds-black); }
+
+        /* Admin Panel */
+        .admin-panel { position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.2); border-left: 5px solid var(--lloyds-green); font-size: 12px; z-index: 1000; }
+        .admin-panel select { padding: 5px; margin-top: 5px; border: 1px solid var(--lloyds-border); border-radius: 4px; font-weight: 700; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">Lloyds <span>Bank</span></div>
+        <div class="nav-links">
+            <a href="#">Personal</a><a href="#">Business</a><a href="#">Private Banking</a>
+            <a href="#" style="display: flex; align-items: center; gap: 5px;">🔍 Search</a>
+            <a href="#" class="btn-outline">Log in</a>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <div class="hero-left">
+            <h1>Classic account</h1>
+            <p>Reliable everyday banking. No monthly fee. Simple.</p>
+            <button class="btn-primary" onclick="document.getElementById('app-container').scrollIntoView({behavior: 'smooth'})">Open account today</button>
+        </div>
+        <div class="hero-right">
+            <div class="hero-image-frame"></div>
+            <div class="badge-moneyfacts">
+                <div class="stars">★★★★★</div>
+                <div>Moneyfacts 5-star rating</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="onboarding-section">
+        <div class="app-container" id="app-container">
+            <div id="screen-start">
+                <h2>Start your application</h2>
+                <p>You are applying for a <strong>Lloyds Classic Account</strong>. To comply with regulations, we need to verify your identity.</p>
+                <p>If you have a Digital KYC Wallet, we can attempt to validate you instantly on the blockchain without uploading documents.</p>
+                <button class="lloyds-input-btn" onclick="initiateWalletCheck()">Continue to Verification</button>
+                <div class="switch-notice">
+                    <strong>Switch Guarantee</strong><br>
+                    We can switch your account in 7 working days. Your direct debits and standing orders will be moved over automatically.
+                </div>
+            </div>
+
+            <!-- NEW SCREEN: Customer ID Input for Returning/Expired Users -->
+            <div id="screen-customer-id" class="hidden">
+                <h2>Welcome back</h2>
+                <p>To securely retrieve your Digital KYC Wallet from the blockchain, please enter your Lloyds Customer ID.</p>
+                
+                <label for="customer-id-input">Customer ID</label>
+                <input type="text" id="customer-id-input" class="lloyds-text-input" placeholder="e.g., 123456789">
+                
+                <button class="lloyds-input-btn" onclick="checkWalletWithCustomerId()">Retrieve Wallet</button>
+            </div>
+
+            <div id="screen-wallet-check" class="hidden">
+                <div class="status-banner info">Checking Digital KYC Wallet...</div>
+                <p>Please wait while we securely query the distributed ledger for your verified credentials.</p>
+                <div style="text-align: center;"><img src="https://i.gifer.com/ZZ5H.gif" alt="Loading" width="40"></div>
+            </div>
+
+            <div id="screen-kyc-required" class="hidden">
+                <div class="status-banner info" id="kyc-required-banner"></div>
+                <h2>Verify your identity</h2>
+                <p>We need to verify your identity. Once complete, a cryptographic hash of your documents will be stored to your wallet for future use.</p>
+                
+                <div class="step-indicator">Step 1: Select Document</div>
+                <div class="doc-selector">
+                    <button class="doc-btn active" id="btn-passport" onclick="selectDoc('passport')">📘 UK Passport</button>
+                    <button class="doc-btn" id="btn-dl" onclick="selectDoc('dl')">💳 UK Driving Licence</button>
+                </div>
+
+                <div id="document-capture-area">
+                    <div id="passport-container">
+                        <label>Scan Passport Photo Page</label>
+                        <div class="upload-box" id="passport-box" onclick="openCamera('passport')">
+                            <p>📷 Click to scan Passport</p>
+                        </div>
+                    </div>
+
+                    <div id="dl-container" class="hidden">
+                        <label>Front of Licence</label>
+                        <div class="upload-box" id="dlFront-box" onclick="openCamera('dlFront')">
+                            <p>📷 Click to scan Front</p>
+                        </div>
+                        
+                        <label style="margin-top: 15px;">Back of Licence</label>
+                        <div class="upload-box" id="dlBack-box" onclick="openCamera('dlBack')">
+                            <p>📷 Click to scan Back</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-indicator" style="margin-top: 20px;">Step 2: Biometric Check</div>
+                <label>Upload Selfie</label>
+                <div class="upload-box" id="selfie-box" onclick="openCamera('selfie')">
+                    <p>🤳 Click to take Selfie</p>
+                </div>
+
+                <button class="lloyds-input-btn" id="btn-initiate-api" onclick="hitInitiateApi()" disabled>
+                    Validate and Create Wallet Credential
+                </button>
+            </div>
+
+            <div id="screen-api-processing" class="hidden">
+                <div class="status-banner info">Processing KYC & Writing to Blockchain...</div>
+                <p>Calling initiate API...</p>
+                <p>Generating cryptographic hash...</p>
+                <p>Storing MITech response to Wallet...</p>
+                <div style="text-align: center;"><img src="https://i.gifer.com/ZZ5H.gif" alt="Loading" width="40"></div>
+            </div>
+
+            <div id="screen-success" class="hidden">
+                <div class="status-banner success">Identity Verified Successfully!</div>
+                <div id="success-wallet-msg" class="hidden">
+                    <h2>Welcome to Lloyds</h2>
+                    <p>Your validated KYC profile has been added to your Digital Wallet on the blockchain.</p>
+                </div>
+                <div id="success-returning-msg" class="hidden">
+                    <h2>Welcome back to Lloyds</h2>
+                    <p>Your Digital KYC Wallet was validated automatically via the blockchain!</p>
+                </div>
+                <button class="lloyds-input-btn" onclick="resetApp()">Start Over</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="camera-modal" id="camera-modal">
+        <div class="camera-container">
+            <video id="camera-video" autoplay playsinline></video>
+            <div class="camera-overlay overlay-passport" id="camera-overlay"></div>
+        </div>
+        <div class="camera-controls">
+            <button class="cam-btn cam-btn-close" onclick="closeCamera()">Cancel</button>
+            <button class="cam-btn cam-btn-capture" onclick="captureImage()">Capture Photo</button>
+        </div>
+    </div>
+
+    <div class="admin-panel">
+        <strong>Simulation State:</strong><br>
+        <select id="user-state-dropdown" onchange="setUserState()">
+            <option value="first_time">User State: First Time (No Wallet)</option>
+            <option value="returning">User State: Returning (Valid Wallet)</option>
+            <option value="expired">User State: Expired KYC</option>
+        </select>
+    </div>
+
+    <script>
+        let appState = {
+            userState: 'first_time',
+            documentType: 'passport',
+            passportScanned: false,
+            dlFrontScanned: false,
+            dlBackScanned: false,
+            selfieUploaded: false,
+            capturedImages: { passport: null, dlFront: null, dlBack: null, selfie: null }
+        };
+
+        function showScreen(screenId) {
+            document.querySelectorAll('#app-container > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function setUserState() {
+            appState.userState = document.getElementById('user-state-dropdown').value;
+            resetApp();
+        }
+
+        function resetApp() {
+            appState.passportScanned = false;
+            appState.dlFrontScanned = false;
+            appState.dlBackScanned = false;
+            appState.selfieUploaded = false;
+            appState.capturedImages = { passport: null, dlFront: null, dlBack: null, selfie: null };
+            document.getElementById('customer-id-input').value = ''; // Clear ID input on reset
+            selectDoc('passport');
+            document.getElementById('btn-initiate-api').disabled = true;
+            showScreen('screen-start');
+        }
+
+        function initiateWalletCheck() {
+            let banner = document.getElementById('kyc-required-banner');
+
+            // IF FIRST TIMER: Skip wallet check entirely, go straight to ID Scan setup
+            if (appState.userState === 'first_time') {
+                banner.className = "status-banner info";
+                banner.innerText = "Welcome! Let's set up your Digital KYC Wallet.";
+                showScreen('screen-kyc-required');
+                return; 
+            }
+
+            // IF RETURNING OR EXPIRED: Ask for Customer ID first
+            showScreen('screen-customer-id');
+        }
+
+        // NEW FUNCTION: Handles the wallet check after Customer ID is entered
+        function checkWalletWithCustomerId() {
+            const custId = document.getElementById('customer-id-input').value;
+            if (!custId) {
+                alert("Please enter your Customer ID to continue.");
+                return;
+            }
+
+            // Show loading screen
+            showScreen('screen-wallet-check');
+
+            // Simulate blockchain check delay
+            setTimeout(() => {
+                let banner = document.getElementById('kyc-required-banner');
+                
+                if (appState.userState === 'returning') {
+                    // Valid wallet found -> Success!
+                    completeSuccess('returning');
+                } else if (appState.userState === 'expired') {
+                    // Expired wallet found -> Force re-scan
+                    banner.className = "status-banner error";
+                    banner.innerText = "Wallet KYC Expired - Re-verification Required";
+                    showScreen('screen-kyc-required');
+                }
+            }, 2500);
+        }
+
+        function hitInitiateApi() {
+            showScreen('screen-api-processing');
+            setTimeout(() => {
+                completeSuccess('first_time');
+            }, 3000);
+        }
+
+        function completeSuccess(type) {
+            showScreen('screen-success');
+            if (type === 'first_time') {
+                document.getElementById('success-wallet-msg').classList.remove('hidden');
+                document.getElementById('success-returning-msg').classList.add('hidden');
+            } else {
+                document.getElementById('success-wallet-msg').classList.add('hidden');
+                document.getElementById('success-returning-msg').classList.remove('hidden');
+            }
+        }
+
+        function selectDoc(type) {
+            appState.documentType = type;
+            appState.passportScanned = false;
+            appState.dlFrontScanned = false;
+            appState.dlBackScanned = false;
+            
+            document.getElementById('btn-passport').classList.toggle('active', type === 'passport');
+            document.getElementById('btn-dl').classList.toggle('active', type === 'dl');
+            document.getElementById('passport-container').classList.toggle('hidden', type !== 'passport');
+            document.getElementById('dl-container').classList.toggle('hidden', type !== 'dl');
+            
+            resetBox('passport-box', '📷 Click to scan Passport');
+            resetBox('dlFront-box', '📷 Click to scan Front');
+            resetBox('dlBack-box', '📷 Click to scan Back');
+            checkIfBothUploaded();
+        }
+
+        function resetBox(id, text) {
+            const box = document.getElementById(id);
+            box.innerHTML = `<p>${text}</p>`;
+            box.style.borderColor = 'var(--lloyds-border)';
+            box.style.backgroundColor = 'transparent';
+        }
+
+        function checkIfBothUploaded() {
+            let docsComplete = false;
+            if (appState.documentType === 'passport' && appState.passportScanned) {
+                docsComplete = true;
+            } else if (appState.documentType === 'dl' && appState.dlFrontScanned && appState.dlBackScanned) {
+                docsComplete = true;
+            }
+            document.getElementById('btn-initiate-api').disabled = !(docsComplete && appState.selfieUploaded);
+        }
+
+        let stream = null;
+        let currentScanType = null; 
+        const video = document.getElementById('camera-video');
+        const modal = document.getElementById('camera-modal');
+        const overlay = document.getElementById('camera-overlay');
+
+        async function openCamera(type) {
+            currentScanType = type;
+            const constraints = {
+                video: {
+                    facingMode: (type === 'selfie') ? 'user' : 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            };
+
+            overlay.className = 'camera-overlay';
+            if (type === 'passport' || type === 'dlFront' || type === 'dlBack') {
+                overlay.classList.add(type === 'passport' ? 'overlay-passport' : 'overlay-dl');
+                overlay.style.display = 'block';
+            } else {
+                overlay.style.display = 'none';
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                video.style.transform = type === 'selfie' ? 'scaleX(-1)' : 'scaleX(1)';
+                modal.classList.add('active');
+            } catch (err) {
+                console.error("Camera access error:", err);
+                alert("Unable to access camera. Please ensure you have granted camera permissions in your browser settings.");
+            }
+        }
+
+        function closeCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            stream = null;
+            modal.classList.remove('active');
+        }
+
+        function captureImage() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+
+            if (currentScanType === 'selfie') {
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
+            }
+            
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            appState.capturedImages[currentScanType] = imageDataUrl;
+
+            closeCamera();
+
+            const boxId = currentScanType + '-box';
+            const box = document.getElementById(boxId);
+            box.innerHTML = `<img src="${imageDataUrl}" alt="Captured ${currentScanType}"><p style="color: var(--lloyds-green); font-weight: 700;">✅ Captured! Click to retake</p>`;
+            box.style.borderColor = 'var(--lloyds-green)';
+            box.style.backgroundColor = 'var(--lloyds-light-green)';
+
+            if (currentScanType === 'passport') appState.passportScanned = true;
+            if (currentScanType === 'dlFront') appState.dlFrontScanned = true;
+            if (currentScanType === 'dlBack') appState.dlBackScanned = true;
+            if (currentScanType === 'selfie') appState.selfieUploaded = true;
+
+            checkIfBothUploaded();
+        }
+    </script>
+</body>
+</html>
