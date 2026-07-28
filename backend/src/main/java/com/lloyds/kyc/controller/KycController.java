@@ -2,15 +2,21 @@ package com.lloyds.kyc.controller;
 
 import com.lloyds.kyc.model.dto.KycInitiateRequest;
 import com.lloyds.kyc.model.entity.KycRecordEntity;
+import com.lloyds.kyc.repository.KycRecordRepository;
 import com.lloyds.kyc.service.KycOrchestrationService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1")
 public class KycController {
     private final KycOrchestrationService kycOrchestrationService;
+    private KycRecordRepository kycRecordRepository;
 
     public KycController(KycOrchestrationService kycOrchestrationService) {
         this.kycOrchestrationService = kycOrchestrationService;
