@@ -18,8 +18,9 @@ public class KycController {
     private final KycOrchestrationService kycOrchestrationService;
     private KycRecordRepository kycRecordRepository;
 
-    public KycController(KycOrchestrationService kycOrchestrationService) {
+    public KycController(KycOrchestrationService kycOrchestrationService, KycRecordRepository kycRecordRepository) {
         this.kycOrchestrationService = kycOrchestrationService;
+        this.kycRecordRepository = kycRecordRepository;
     }
 
     @PostMapping("/kyc/initiate")
