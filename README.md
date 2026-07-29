@@ -48,7 +48,7 @@ participants.local.head.synchronizers.connect_local(sequencers.local.head, alias
 
 cd daml
 daml build
-daml ledger upload-dar --host localhost --port 5011 .\.daml\dist\reusable-kyc-0.0.1.dar
+daml ledger upload-dar --host 34.14.150.251 --port 5011 .\.daml\dist\reusable-kyc-0.0.1.dar
 daml start
 http://localhost:7575/v2/parties
 

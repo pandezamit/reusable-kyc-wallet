@@ -32,6 +32,7 @@ docker push REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/daml-init:latest
 
 docker build -t REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/backend:latest ./backend
 docker push REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/backend:latest
+docker push asia-south1-docker.pkg.dev/ltc-hack2026-team15/kyc-repo/backend:latest
 ```
 
 Then replace every `REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/...` placeholder

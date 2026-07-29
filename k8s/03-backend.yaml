@@ -73,3 +73,33 @@ spec:
     - name: http
       port: 80
       targetPort: 8080
+---
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: backend-managed-cert
+  namespace: kyc-demo
+spec:
+  domains:
+    - kyc-demo.example.com   # <-- replace with your actual domain
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-ingress
+  namespace: kyc-demo
+  annotations:
+    networking.gke.io/managed-certificates: "backend-managed-cert"
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+    - host: kyc-demo.example.com   # <-- replace with your actual domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80
