@@ -1,3 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: kyc-demo
+data:
+  CANTON_LEDGER_HOST: "canton"   # override or omit if backend runs without a ledger
+  CANTON_LEDGER_PORT: "5011"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,30 +26,19 @@ spec:
       labels:
         app: backend
     spec:
-      initContainers:
-        - name: wait-for-canton
-          image: busybox:1.36
-          command:
-            - sh
-            - -c
-            - |
-              until nc -z canton 5011; do
-                echo "waiting for canton:5011..."
-                sleep 5
-              done
       containers:
         - name: backend
-          image: REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/backend:latest   # <-- replace after pushing your image
+          image: asia-south1-docker.pkg.dev/ltc-hack2026-team15/kyc-repo/backend:latest   # <-- replace after pushing your image
           ports:
             - name: http
               containerPort: 8080
           env:
             - name: PORT
               value: "8080"
-            - name: CANTON_LEDGER_HOST
-              value: "canton"
-            - name: CANTON_LEDGER_PORT
-              value: "5011"
+          envFrom:
+            - configMapRef:
+                name: backend-config
+                optional: true   # deployment still starts fine if this ConfigMap is absent
           readinessProbe:
             tcpSocket:
               port: 8080

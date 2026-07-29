@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: canton
-          image: REGION-docker.pkg.dev/PROJECT_ID/kyc-repo/canton:latest   # <-- replace after pushing your image
+          image: asia-south1-docker.pkg.dev/ltc-hack2026-team15/kyc-repo/canton:latest   # <-- replace after pushing your image
           ports:
             - name: ledger-api
               containerPort: 5011
@@ -53,6 +53,7 @@ spec:
               cpu: "2"
               memory: "3Gi"
 ---
+# Internal-only service, unchanged (admin/json/sequencer ports stay ClusterIP)
 apiVersion: v1
 kind: Service
 metadata:
@@ -83,3 +84,20 @@ spec:
     - name: med-admin
       port: 5020
       targetPort: 5020
+---
+# New: exposes ledger-api (5011) externally via a cloud LoadBalancer / external IP
+apiVersion: v1
+kind: Service
+metadata:
+  name: canton-external
+  namespace: kyc-demo
+  labels:
+    app: canton
+spec:
+  type: LoadBalancer
+  selector:
+    app: canton
+  ports:
+    - name: ledger-api
+      port: 5011
+      targetPort: 5011

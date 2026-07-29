@@ -55,7 +55,10 @@ http://localhost:7575/v2/parties
 
 docker build -t canton-node:3.5.10 .
 
-docker run --rm -it --name canton-node -p 5011:5011 -p 10011:10011 -p 10012:10012 -p 10018:10018 -p 10019:10019 -p 10022:10022 canton-node:3.5.10
+docker run --rm -it --name canton-node -p 5011:5011 asia-south1-docker.pkg.dev/ltc-hack2026-team15/kyc-repo/canton:latest
 
 java -jar canton-open-source-3.5.10.jar -c my-node.conf --bootstrap bootstrap.canton
 
+gcloud artifacts repositories create kyc-repo   --repository-format=docker   --location=asia-south1
+
+docker build -t asia-south1-docker.pkg.dev/ltc-hack2026-team15/kyc-repo/canton:latest ./canton

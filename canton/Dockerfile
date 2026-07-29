@@ -57,4 +57,6 @@ EXPOSE 5011 5012 5013 5018 5019 5020
 #
 # Without a bootstrap script, this just starts the interactive/daemon node
 # using the given config.
-ENTRYPOINT ["java", "-jar", "canton.jar", "--config", "my-node.conf", "--bootstrap", "bootstrap.canton"]
+# ENTRYPOINT ["java", "-jar", "canton.jar", "--config", "my-node.conf", "--bootstrap", "bootstrap.canton"]
+ENTRYPOINT ["java", "-jar", "canton.jar", "daemon", "--config", "my-node.conf", "--bootstrap", "bootstrap.canton"]
+
