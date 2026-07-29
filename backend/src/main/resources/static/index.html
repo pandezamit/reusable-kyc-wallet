@@ -229,6 +229,14 @@
                     <h2>Welcome back to Lloyds</h2>
                     <p>Your Digital KYC Wallet was validated automatically via the blockchain!</p>
                 </div>
+
+                <div id="wallet-details-panel-kyc" class="hidden" style="margin-top: 20px;">
+                    <h3 style="margin: 0 0 10px 0; color: var(--lloyds-green); font-size: 18px;">Wallet Details</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <tbody id="wallet-details-body-kyc"></tbody>
+                    </table>
+                </div>
+
                 <button class="lloyds-input-btn" onclick="resetApp()">Start Over</button>
             </div>
         </div>
@@ -282,6 +290,8 @@
             appState.selfieUploaded = false;
             appState.capturedImages = { passport: null, dlFront: null, dlBack: null, selfie: null };
             document.getElementById('customer-id-input').value = ''; // Clear ID input on reset
+            document.getElementById('wallet-details-body-kyc').innerHTML = '';
+            document.getElementById('wallet-details-panel-kyc').classList.add('hidden');
             selectDoc('passport');
             document.getElementById('btn-initiate-api').disabled = true;
             showScreen('screen-start');
@@ -372,7 +382,17 @@
                 }
  
                 const result = await response.json().catch(() => null);
+                const customerIdRes = result?.customerId || customerId;
                 console.log('KYC initiation response:', result);
+                console.log('customerId:', customerIdRes);
+                renderWalletDetails({
+                    customerId: customerIdRes,
+                    status: result?.status || 'SUCCESS',
+                    cantonContractId: result?.cantonContractId || '—',
+                    mitekDossierId: result?.mitekDossierId || '—',
+                    verifiedAt: result?.verifiedAt || new Date().toISOString(),
+                    expiresAt: result?.expiresAt || '—'
+                });
                 completeSuccess('first_time');
             } catch (error) {
                 console.error('KYC initiation failed:', error);
@@ -396,7 +416,6 @@
 
             const bodies = [
                 document.getElementById('wallet-details-body-kyc'),
-                document.getElementById('wallet-details-body-success')
             ];
 
             bodies.forEach(body => {
