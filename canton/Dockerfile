@@ -49,7 +49,7 @@ USER ${CANTON_USER}
 #   Sequencer Admin API      : 10019
 #   Mediator Admin API       : 10022
 # EXPOSE 10011 10012 10018 10019 10022 
-EXPOSE 5011 5012 5013 5018 5019 5020
+EXPOSE 5011 5012 5013 5018 5019 5020 
 
 # If you have a bootstrap script, invoke Canton with --bootstrap so the
 # synchronizer/participant setup commands run automatically on startup:

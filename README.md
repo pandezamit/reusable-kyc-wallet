@@ -62,3 +62,34 @@ java -jar canton-open-source-3.5.10.jar -c my-node.conf --bootstrap bootstrap.ca
 gcloud artifacts repositories create kyc-repo   --repository-format=docker   --location=asia-south1
 
 docker build -t asia-south1-docker.pkg.dev/ltc-hack2026-team15/kyc-repo/canton:latest ./canton
+
+daml canton-console -c remote-config.conf
+health.status
+remoteParticipant1.dars.list()
+
+cd daml
+daml script --dar .daml/dist/reusable-kyc-0.0.1.dar --script-name Daml.Init:setup --ledger-host 34.14.150.251 --ledger-port 5011 --upload-dar yes
+
+http://34.14.150.251:5013/v2/parties
+
+```scala
+remoteParticipant1.parties.list()
+
+val allParties = remoteParticipant1.parties.list()
+allParties.foreach(p => println(p.partyResult))
+
+val customer06 = allParties.find(_.partyResult.toString.startsWith("Customer_06")).get.partyResult
+
+remoteParticipant1.ledger_api.state.acs.of_party(
+  party = customer06,
+  filterTemplates = Seq(
+    TemplateId(
+      "#reusable-kyc",
+      "KYC.KycRecord",
+      "KycRecord"
+    )
+  ),
+  verbose = true
+)
+```
+

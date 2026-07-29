@@ -53,7 +53,7 @@ spec:
               cpu: "2"
               memory: "3Gi"
 ---
-# Internal-only service, unchanged (admin/json/sequencer ports stay ClusterIP)
+# Internal ClusterIP service, unchanged
 apiVersion: v1
 kind: Service
 metadata:
@@ -85,7 +85,7 @@ spec:
       port: 5020
       targetPort: 5020
 ---
-# New: exposes ledger-api (5011) externally via a cloud LoadBalancer / external IP
+# Exposes ALL ports externally via a cloud LoadBalancer / external IP
 apiVersion: v1
 kind: Service
 metadata:
@@ -101,3 +101,21 @@ spec:
     - name: ledger-api
       port: 5011
       targetPort: 5011
+    - name: admin-api
+      port: 5012
+      targetPort: 5012
+    - name: json-api
+      port: 5013
+      targetPort: 5013
+    - name: seq-public
+      port: 5018
+      targetPort: 5018
+    - name: seq-admin
+      port: 5019
+      targetPort: 5019
+    - name: med-admin
+      port: 5020
+      targetPort: 5020
+    - name: med-admin
+      port: 5020
+      targetPort: 5020
